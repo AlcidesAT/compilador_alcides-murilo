@@ -11,8 +11,9 @@ decim, texto, sim, nao...) no lugar das palavras em ingles do enunciado
 (if, while, return, int...) - ver os conjuntos PALAVRAS_CHAVE/TIPOS/
 BOOLEANOS mais abaixo para a lista completa.
 
-O programa tambem detecta 4 tipos de erro: caractere invalido, string
-sem fechar, identificador comecando com numero, e numero mal escrito.
+O programa tambem detecta os 3 tipos de erro pedidos no enunciado:
+caractere invalido, string sem fechar, e identificador comecando com
+numero.
 
 Para testar: sem nenhum argumento, ele roda automaticamente sobre todos
 os arquivos de exemplo da pasta examples/ (funcao rodar_exemplos()).
@@ -30,25 +31,20 @@ from pathlib import Path
 #     em vez de virar o numero "1" seguido do nome "abc".
 #   - STRING (fechada certinho) antes de STRING_INVALIDA -> uma string
 #     correta e reconhecida como valida, nao como erro.
-#   - NUMERO_INVALIDO antes de FLOAT/NUMERO -> "3." ou ".5" viram um
-#     erro so, em vez de numero incompleto + sobra solta.
 #   - Operadores de 2 caracteres (==, !=, <=, >=) antes dos de 1
 #     caractere, senao "==" virava dois sinais de "=" separados.
 tokens = {
-    # "//" e o jeito formal de comentario (pedido no enunciado); "~>" e
-    # um jeito extra, mais informal, que tambem funciona.
-    "COMENTARIO":              r"//[^\n]*|~>[^\n]*",
-    "QUEBRA_DE_LINHA":         r"\n",
-    "ESPACO":                  r"[ \t\r]+",
-    "IDENTIFICADOR_INVALIDO":  r"\d+[A-Za-z_]\w*",      # 1abc  2x  (comeca com digito)
-    "STRING":                  r'"[^"\n]*"',            # "Ana"   "Ola, mundo"
-    "STRING_INVALIDA":         r'"[^"\n]*',             # "texto sem fechar
-    "NUMERO_INVALIDO":         r"\d+\.(?!\d)|\.\d+",    # 3.   .5  (ponto sem digito de um dos lados)
-    "FLOAT":                   r"\d+\.\d+",             # 3.14   9.99
-    "NUMERO":                  r"\d+",                  # 0   42   1000
-    "IDENTIFICADOR":           r"[a-zA-Z_][a-zA-Z0-9_]*",  # x   soma   valor1
-    "OPERADOR":                r"==|!=|<=|>=|=|<|>|\+|-|\*|/",
-    "SIMBOLO":                 r"[(){};,]",             # bloco { } e chamada de funcao ( , )
+    "COMENTARIO": r"//[^\n]*",         # // ate o final da linha
+    "QUEBRA_DE_LINHA": r"\n",
+    "ESPACO": r"[ \t\r]+",
+    "IDENTIFICADOR_INVALIDO": r"\d+[A-Za-z_]\w*",      # 1abc  2x  (comeca com digito)
+    "STRING": r'"[^"\n]*"',            # "Ana"   "Ola, mundo"
+    "STRING_INVALIDA": r'"[^"\n]*',             # "texto sem fechar
+    "FLOAT": r"\d+\.\d+",             # 3.14   9.99
+    "NUMERO": r"\d+",                  # 0   42   1000
+    "IDENTIFICADOR": r"[a-zA-Z_][a-zA-Z0-9_]*",  # x   soma   valor1
+    "OPERADOR": r"==|!=|<=|>=|=|<|>|\+|-|\*|/",
+    "SIMBOLO": r"[(){};,]",             # bloco { } e chamada de funcao ( , )
 }
 
 # Estas palavras nao podem virar nome de variavel ou funcao. O programa
@@ -58,11 +54,10 @@ tokens = {
 #
 # Vocabulario proprio em portugues, no lugar do sugerido no enunciado
 # (mesma estrutura: 5 palavras-chave, 5 tipos com void, 2 booleanos):
-#   if/else/while/return  -> caso_isso/se_nao_isso/loop/retorna
-#   print                 -> mostrar / fala
-#   int/float/string/bool -> num/decim/texto/bool  (void continua void)
-#   true/false            -> sim/nao
-PALAVRAS_CHAVE = {"caso_isso", "se_nao_isso", "loop", "retorna", "mostrar", "fala"}
+#   if/else/while/return/print -> caso_isso/se_nao_isso/loop/retorna/mostrar
+#   int/float/string/bool      -> num/decim/texto/bool  (void continua void)
+#   true/false                 -> sim/nao
+PALAVRAS_CHAVE = {"caso_isso", "se_nao_isso", "loop", "retorna", "mostrar"}
 TIPOS = {"num", "decim", "texto", "bool", "void"}
 BOOLEANOS = {"sim", "nao"}
 
@@ -120,11 +115,6 @@ def tokenize(codigo):
             )
         elif tipo == "STRING_INVALIDA":
             erros.append(f"linha {linha}: cadeia de caracteres nao terminada {lexema!r}")
-        elif tipo == "NUMERO_INVALIDO":
-            erros.append(
-                f"linha {linha}: numero mal formatado {lexema!r} "
-                "(ponto decimal precisa de digitos dos dois lados)"
-            )
         else:
             if tipo == "IDENTIFICADOR":
                 tipo = classificar_identificador(lexema)
