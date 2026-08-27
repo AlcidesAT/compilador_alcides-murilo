@@ -1,0 +1,9 @@
+// Exemplo: declaracao de variaveis de todos os tipos exigidos.
+
+num idade = 25;
+decim altura = 1.75;
+texto cidade = "Chapeco";
+bool matriculado = sim;
+
+num total = idade + 10;
+bool maior_de_idade = idade >= 18;

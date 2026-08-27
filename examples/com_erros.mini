@@ -1,0 +1,8 @@
+// Exemplo com erros léxicos propositais, para demonstrar o tratamento de erros.
+
+num 1abc = 10;
+texto msg = "texto sem fechar;
+num total = x @ y;
+decim preco = 9.99;
+num y# = 5;
+decim pi = 3.;

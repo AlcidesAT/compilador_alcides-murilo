@@ -1,0 +1,25 @@
+// Exemplo válido: exercita todos os recursos obrigatórios da linguagem.
+
+num x = 42;
+decim pi = 3.14;
+texto nome = "Ana";
+bool ativo = sim;
+
+num soma(num a, num b) {
+    retorna a + b;
+}
+
+void saudacao(texto nome) {
+    mostrar("Ola, " + nome);
+}
+
+loop (x > 0) {
+    caso_isso (x == 42) {
+        mostrar(x);
+    } se_nao_isso {
+        x = x - 1;
+    }
+}
+
+num y = soma(x, 10);
+bool ok = x == 42;

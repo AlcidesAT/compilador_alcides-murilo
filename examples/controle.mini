@@ -1,0 +1,12 @@
+// Exemplo: estruturas de controle (caso_isso / se_nao_isso / loop).
+
+num contador = 0;
+
+loop (contador < 5) {
+    caso_isso (contador == 3) {
+        mostrar("chegou no tres");
+    } se_nao_isso {
+        mostrar(contador);
+    }
+    contador = contador + 1;
+}

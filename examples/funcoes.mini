@@ -1,0 +1,16 @@
+// Exemplo: declaracao de funcoes (com e sem retorno) e chamadas.
+
+num soma(num a, num b) {
+    retorna a + b;
+}
+
+num dobro(num x) {
+    retorna x * 2;
+}
+
+void mostrar_resultado(num valor) {
+    mostrar(valor);
+}
+
+num resultado = soma(3, dobro(4));
+mostrar_resultado(resultado);
