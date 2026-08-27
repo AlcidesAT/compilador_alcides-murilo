@@ -1,43 +1,42 @@
 """
 Analisador Lexico - Trabalho Pratico (Aula 4: Analise Lexica)
 
-Baseado no gabarito da aula, mas varrendo o codigo caractere a caractere
-(re.match a partir de uma posicao) em vez de codigo.split() + fullmatch -
-o gabarito original nao separa simbolos colados a identificadores (ex:
-"x==10" vira uma unica "palavra" e "==" sai como UNKNOWN, como o proprio
-slide "Saida Esperada do Tokenizador" mostra). A ideia central - "um
-dicionario de regex em que a ordem decide o vencedor" - continua igual.
+Este programa faz a primeira etapa de um compilador: pega um codigo-fonte
+(um texto) e separa em pedacos menores chamados "tokens" - palavras-
+chave, nomes de variavel, numeros, simbolos etc. Ele nao entende o
+significado do codigo, so identifica e classifica cada pedaco.
 
-Trata os 4 erros lexicos exigidos: caractere invalido, string nao
-terminada, identificador malformado e numero mal formatado.
+A linguagem usa palavras em portugues (caso_isso, loop, retorna, num,
+decim, texto, sim, nao...) no lugar das palavras em ingles do enunciado
+(if, while, return, int...) - ver os conjuntos PALAVRAS_CHAVE/TIPOS/
+BOOLEANOS mais abaixo para a lista completa.
 
-A linguagem usa vocabulario proprio em portugues (caso_isso, loop,
-retorna, num, decim, texto, sim, nao...) no lugar das palavras em ingles
-do enunciado - ver PALAVRAS_CHAVE/TIPOS/BOOLEANOS abaixo. "~>" e uma
-forma informal extra de comentario, alem do "//" formal (examples/informal.mini).
+O programa tambem detecta 4 tipos de erro: caractere invalido, string
+sem fechar, identificador comecando com numero, e numero mal escrito.
 
-Sem argumento, roda o analisador sobre todos os exemplos de examples/
-(rodar_exemplos()) - a forma de "teste" deste projeto: cada exemplo
-mostra visualmente se o resultado bate com o esperado.
+Para testar: sem nenhum argumento, ele roda automaticamente sobre todos
+os arquivos de exemplo da pasta examples/ (funcao rodar_exemplos()).
 """
 
 import re
 import sys
 from pathlib import Path
 
-# A ordem importa: o modulo re escolhe a primeira alternativa que casa,
-# nao a mais longa. Por isso os padroes mais especificos vem antes dos
-# genericos:
-#   - IDENTIFICADOR_INVALIDO antes de FLOAT/NUMERO -> "1abc" vira um
-#     unico erro, em vez de NUMERO("1") + IDENTIFICADOR("abc").
-#   - STRING (fechada) antes de STRING_INVALIDA -> prefere o caso valido.
-#   - NUMERO_INVALIDO antes de FLOAT/NUMERO -> "3." e ".5" viram um
-#     unico erro, em vez de numero incompleto + caractere solto.
+# A ordem desta lista importa! O programa testa os padroes na ordem em
+# que estao aqui, e usa o PRIMEIRO que encontrar - mesmo que outro mais
+# abaixo tambem desse certo. Por isso os casos mais especificos vem
+# antes dos mais gerais:
+#   - IDENTIFICADOR_INVALIDO antes de NUMERO -> "1abc" vira UM erro so,
+#     em vez de virar o numero "1" seguido do nome "abc".
+#   - STRING (fechada certinho) antes de STRING_INVALIDA -> uma string
+#     correta e reconhecida como valida, nao como erro.
+#   - NUMERO_INVALIDO antes de FLOAT/NUMERO -> "3." ou ".5" viram um
+#     erro so, em vez de numero incompleto + sobra solta.
 #   - Operadores de 2 caracteres (==, !=, <=, >=) antes dos de 1
-#     caractere, senao "==" viraria dois tokens "=" separados.
+#     caractere, senao "==" virava dois sinais de "=" separados.
 tokens = {
-    # "//" e a forma formal de comentario (exigida no enunciado); "~>" e
-    # uma forma informal a mais, tipo um bilhetinho no meio do codigo.
+    # "//" e o jeito formal de comentario (pedido no enunciado); "~>" e
+    # um jeito extra, mais informal, que tambem funciona.
     "COMENTARIO":              r"//[^\n]*|~>[^\n]*",
     "QUEBRA_DE_LINHA":         r"\n",
     "ESPACO":                  r"[ \t\r]+",
@@ -52,9 +51,10 @@ tokens = {
     "SIMBOLO":                 r"[(){};,]",             # bloco { } e chamada de funcao ( , )
 }
 
-# Palavras reservadas: nao podem virar nome de variavel/funcao. So sao
-# reconhecidas DEPOIS do lexema casar como IDENTIFICADOR (nunca com
-# regex propria), senao "loopado" seria fatiado em "loop" + "ado".
+# Estas palavras nao podem virar nome de variavel ou funcao. O programa
+# so verifica se um pedaco reconhecido e uma dessas palavras DEPOIS de
+# identifica-lo como um nome comum (nunca antes) - assim "loopado"
+# continua sendo reconhecido inteiro, e nao cortado em "loop" + "ado".
 #
 # Vocabulario proprio em portugues, no lugar do sugerido no enunciado
 # (mesma estrutura: 5 palavras-chave, 5 tipos com void, 2 booleanos):
@@ -71,7 +71,9 @@ _PADRAO = re.compile("|".join(f"(?P<{tipo}>{regex})" for tipo, regex in tokens.i
 
 
 def classificar_identificador(lexema):
-    """Reclassifica um IDENTIFICADOR em palavra-chave/tipo/booleano, se for o caso."""
+    """Verifica se um nome reconhecido e na verdade uma palavra reservada
+    (palavra-chave, tipo ou booleano). Se nao for nenhuma delas, e so um
+    nome comum de variavel/funcao."""
     if lexema in PALAVRAS_CHAVE:
         return "PALAVRA_CHAVE"
     if lexema in TIPOS:
@@ -82,15 +84,15 @@ def classificar_identificador(lexema):
 
 
 def tokenize(codigo):
-    """Transforma o codigo-fonte em uma lista de tokens (tipo, lexema, linha).
+    """Le o codigo inteiro e devolve a lista de tokens encontrados, junto
+    com a lista de erros.
 
-    Erros lexicos sao contados e reportados, mas NAO interrompem a
-    analise: o scanner descarta o trecho invalido e continua a partir
-    do proximo caractere, assim como um compilador real reporta todos
-    os erros de uma vez em vez de parar no primeiro problema.
+    Quando encontra um erro, o programa anota a mensagem e continua lendo
+    o resto do codigo, em vez de parar tudo no primeiro problema - assim,
+    no final, aparecem todos os erros de uma vez.
     """
-    resultado = []   # lista de tokens reconhecidos: (tipo, lexema, linha)
-    erros = []        # lista de mensagens de erro
+    resultado = []   # tokens reconhecidos: (tipo, lexema, linha)
+    erros = []        # mensagens de erro encontradas
     linha = 1
     pos = 0
 
@@ -98,7 +100,7 @@ def tokenize(codigo):
         casamento = _PADRAO.match(codigo, pos)
 
         if casamento is None:
-            # nenhum padrao casou: caractere fora do alfabeto da linguagem
+            # nenhum padrao bateu: esse caractere nao existe na linguagem
             erros.append(f"linha {linha}: caractere invalido {codigo[pos]!r}")
             pos += 1
             continue
@@ -132,7 +134,8 @@ def tokenize(codigo):
 
 
 def imprimir_relatorio(nome, tokens_encontrados, erros):
-    """Imprime, de forma organizada, a tabela de tokens e os erros de um arquivo."""
+    """Mostra na tela uma tabela com os tokens encontrados e a lista de
+    erros (se houver)."""
     largura = 64
     linha_divisoria = "-" * largura
 
@@ -161,10 +164,9 @@ def imprimir_relatorio(nome, tokens_encontrados, erros):
 
 
 def analisar_arquivo(caminho):
-    """Le, tokeniza e imprime o relatorio de um arquivo-fonte.
+    """Le um arquivo, identifica os tokens e mostra o resultado na tela.
 
-    Retorna True se nao houve erro lexico, False caso contrario - usado
-    tanto pelo modo "um arquivo" quanto pelo modo "demonstracao".
+    Devolve True se nao teve nenhum erro, False se teve.
     """
     if not caminho.is_file():
         print(f"Erro: arquivo '{caminho}' nao encontrado.")
@@ -181,11 +183,10 @@ def analisar_arquivo(caminho):
 
 
 def rodar_exemplos():
-    """Roda o analisador sobre todos os programas em examples/, em ordem.
+    """Roda o analisador em todos os arquivos de examples/, um de cada vez.
 
-    Serve como demonstracao/verificacao manual: cada arquivo mostra se
-    o analisador reconhece exatamente o que era esperado (0 erros nos
-    exemplos validos, os erros certos no exemplo de erros).
+    Serve para testar visualmente: o esperado e 0 erros nos exemplos
+    validos, e exatamente os erros propositais no exemplo de erros.
     """
     pasta = Path(__file__).parent / "examples"
     arquivos = sorted(pasta.glob("*.mini"))
@@ -204,9 +205,8 @@ def rodar_exemplos():
 
 
 def main():
-    # Sem argumento: roda todos os exemplos de examples/, um atras do
-    # outro (serve de demonstracao). Com argumento: analisa so aquele
-    # arquivo especifico.
+    # Rodar com um nome de arquivo: analisa so aquele arquivo.
+    # Rodar sem nada: analisa todos os exemplos de examples/.
     if len(sys.argv) > 1:
         ok = analisar_arquivo(Path(sys.argv[1]))
     else:
