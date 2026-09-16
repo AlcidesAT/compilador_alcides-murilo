@@ -1,11 +1,11 @@
 // Exemplo válido: exercita todos os recursos obrigatórios da linguagem.
 
-num x = 42;
+int x = 42;
 decim pi = 3.14;
 texto nome = "Ana";
 bool ativo = sim;
 
-num soma(num a, num b) {
+int soma(int a, int b) {
     retorna a + b;
 }
 
@@ -21,5 +21,5 @@ loop (x > 0) {
     }
 }
 
-num y = soma(x, 10);
+int y = soma(x, 10);
 bool ok = x == 42;

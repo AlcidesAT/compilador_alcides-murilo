@@ -1,0 +1,8 @@
+// Exemplo com erro sintatico proposital, para demonstrar o analisador.
+// Todos os tokens aqui sao lexicamente validos - o erro so aparece na
+// analise sintatica (falta o valor depois do "=").
+
+int x = 10;
+int y = 20;
+
+decim total = ;

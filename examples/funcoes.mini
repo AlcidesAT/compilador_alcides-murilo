@@ -1,16 +1,16 @@
 // Exemplo: declaracao de funcoes (com e sem retorno) e chamadas.
 
-num soma(num a, num b) {
+int soma(int a, int b) {
     retorna a + b;
 }
 
-num dobro(num x) {
+int dobro(int x) {
     retorna x * 2;
 }
 
-void mostrar_resultado(num valor) {
+void mostrar_resultado(int valor) {
     mostrar(valor);
 }
 
-num resultado = soma(3, dobro(4));
+int resultado = soma(3, dobro(4));
 mostrar_resultado(resultado);

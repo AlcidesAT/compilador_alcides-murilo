@@ -17,7 +17,7 @@ Foi escolhida uma linguagem própria em português. Ela mantém a mesma quantida
 | Categoria        | Palavras                                                 |
 | ---------------- | -------------------------------------------------------- |
 | Palavras-chave   | `caso_isso`, `se_nao_isso`, `loop`, `retorna`, `mostrar` |
-| Tipos            | `num`, `decim`, `texto`, `bool`, `void`                  |
+| Tipos            | `int`, `decim`, `texto`, `bool`, `void`                  |
 | Booleanos        | `sim`, `nao`                                             |
 | Identificadores  | `x`, `contador1`, `soma`                                 |
 | Números inteiros | `42`, `0`, `1000`                                        |
@@ -27,7 +27,7 @@ Foi escolhida uma linguagem própria em português. Ela mantém a mesma quantida
 | Símbolos         | `; , ( ) { }`                                            |
 | Comentários      | `// comentário`                                          |
 
-As variáveis possuem um tipo definido, como `num x = 10;`, e as funções também possuem tipo de retorno e parâmetros.
+As variáveis possuem um tipo definido, como `int x = 10;`, e as funções também possuem tipo de retorno e parâmetros.
 
 ## 3. Estrutura do projeto
 
@@ -120,3 +120,48 @@ Para analisar apenas um arquivo:
 python analisador_lexico.py examples/valido.mini
 ```
 
+## 9. Aula 5 — Análise sintática
+
+Depois do léxico, o passo seguinte do compilador é o analisador sintático
+(`analisador_sintatico.py`), que verifica se a sequência de tokens forma um
+programa válido segundo a gramática da linguagem, e monta a árvore
+sintática correspondente. Ele foi feito propositalmente simples: o mínimo
+necessário para reconhecer a gramática da linguagem do projeto.
+
+### Técnica usada
+
+Foi usada descida recursiva (recursive descent): cada regra da gramática
+vira uma função Python, e uma função chama a outra na mesma ordem em que
+uma regra aparece dentro da outra (`programa()` chama `declaracao()`, que
+chama `bloco()`/`comando()`, que chama `expressao()`, etc). É a forma mais
+direta de escrever um parser à mão, e a gramática completa (em BNF) está
+comentada no topo do arquivo.
+
+Para simplificar, `expressao()` não separa os operadores por precedência
+(diferente do que um parser "completo" faria com `+`/`-` e `*`/`/` em
+regras separadas): ela só encadeia `termo operador termo` da esquerda pra
+direita. Isso é suficiente para tudo que os exemplos do projeto usam.
+
+### Árvore sintática
+
+Cada função devolve um nó (classe `No`, com `tipo`, `valor` e `filhos`).
+Ao final, a árvore inteira é impressa de forma indentada — é a mesma ideia
+das árvores de expressão/comando mostradas nos slides da Aula 5 (operador
+como nó, operandos como filhos), só que aplicada à gramática real da
+linguagem do projeto, e não a um exemplo abstrato.
+
+### Tratamento de erros
+
+Diferente do léxico, o parser para na primeira regra que não reconhecer:
+assim que um token não bate com o esperado, ele levanta um erro com a
+linha e a análise é interrompida. Essa é a parte mais simples de
+implementar (não precisa de lógica de recuperação/sincronização) e é
+suficiente para o nível deste exercício.
+
+### Testes
+
+Foi criado mais um arquivo de exemplo, `erros_sintaticos.mini`: um programa
+lexicamente válido, mas com um erro de sintaxe proposital (`decim total =
+;`, faltando o valor depois do `=`). Os outros quatro exemplos da Aula 4
+continuam sendo usados como teste de regressão: devem gerar árvore
+sintática completa e nenhum erro.

@@ -6,6 +6,11 @@ Compilador didático desenvolvido para a disciplina de Compiladores.
 completo, escrito em Python puro (só a biblioteca padrão), para uma
 linguagem fictícia de tipagem estática com sintaxe no estilo C/Java.
 
+**Aula 5 — Análise Sintática**: implementação de um analisador sintático
+(parser) simples, de descida recursiva, que consome os tokens produzidos
+pelo analisador léxico e monta a árvore sintática do programa, parando no
+primeiro erro de sintaxe encontrado.
+
 O relatório com as decisões de projeto está em [`RELATORIO.md`](RELATORIO.md).
 
 ## Requisitos
@@ -15,34 +20,42 @@ O relatório com as decisões de projeto está em [`RELATORIO.md`](RELATORIO.md)
 
 ## Uso
 
-Sem argumento, roda o analisador sobre **todos** os programas de exemplo em
-`examples/`, um atrás do outro — é a forma de demonstração/teste deste
+Sem argumento, cada analisador roda sobre **todos** os programas de exemplo
+em `examples/`, um atrás do outro — é a forma de demonstração/teste deste
 projeto:
 
 ```bash
 python analisador_lexico.py
+python analisador_sintatico.py
 ```
 
 Para analisar um arquivo específico:
 
 ```bash
 python analisador_lexico.py examples/valido.mini
+python analisador_sintatico.py examples/valido.mini
 ```
 
-O programa encerra com código de saída `0` quando não há erro léxico em
+`analisador_sintatico.py` já roda a análise léxica internamente antes da
+sintática (a segunda etapa depende dos tokens produzidos pela primeira).
+
+Os dois programas encerram com código de saída `0` quando não há erro em
 nenhum arquivo analisado, e `1` quando há pelo menos um erro em algum deles
 (a lista completa de erros é sempre impressa).
 
 ## Estrutura do projeto
 
 ```
-analisador_lexico.py    dicionário `tokens`, função tokenize() e a CLI (main())
+analisador_lexico.py     dicionário `tokens`, função tokenize() e a CLI (main())
+analisador_sintatico.py  gramática (BNF em comentário), classe Parser (descida
+                          recursiva), árvore sintática (classe No) e a CLI (main())
 examples/
-  valido.mini      programa completo sem erros (todos os recursos obrigatórios)
-  variaveis.mini   declaração de variáveis de todos os tipos
-  funcoes.mini     declaração de funções (com/sem retorno) e chamadas
-  controle.mini    estruturas de controle (caso_isso / se_nao_isso / loop)
-  com_erros.mini   programa com os três tipos de erro léxico propositais
+  valido.mini           programa completo sem erros (todos os recursos obrigatórios)
+  variaveis.mini        declaração de variáveis de todos os tipos
+  funcoes.mini          declaração de funções (com/sem retorno) e chamadas
+  controle.mini         estruturas de controle (caso_isso / se_nao_isso / loop)
+  com_erros.mini        programa com os três tipos de erro léxico propositais
+  erros_sintaticos.mini programa lexicamente válido, mas com um erro de sintaxe proposital
 ```
 
 ## A linguagem
@@ -55,7 +68,7 @@ completa está no `RELATORIO.md`. Em resumo:
 | Categoria           | Palavras da linguagem                          | Equivalente no enunciado |
 |----------------------|-------------------------------------------------|----------------------------|
 | Palavras-chave       | `caso_isso`, `se_nao_isso`, `loop`, `retorna`, `mostrar` | `if`, `else`, `while`, `return`, `print` |
-| Tipos                | `num`, `decim`, `texto`, `bool`, `void`         | `int`, `float`, `string`, `bool`, `void` |
+| Tipos                | `int`, `decim`, `texto`, `bool`, `void`         | `int`, `float`, `string`, `bool`, `void` |
 | Booleanos            | `sim`, `nao`                                     | `true`, `false`            |
 
 - **Identificadores**: começam com letra ou `_`, seguidos de letras, dígitos ou `_`

@@ -29,8 +29,30 @@ from pathlib import Path
 #     correta e reconhecida como valida, nao como erro.
 #   - Operadores de 2 caracteres (==, !=, <=, >=) antes dos de 1
 #     caractere, senao "==" virava dois sinais de "=" separados.
+#
+# Legenda dos "\letra" usados nos regex abaixo (sao classes de caractere
+# prontas do modulo re, nao tem nada a ver com o \n de quebra de linha do
+# Python em si - aqui e o regex quem interpreta a barra):
+#   \d  = um digito           equivale a [0-9]
+#   \w  = um "caractere de palavra"  equivale a [A-Za-z0-9_]
+#   \s  = um espaco em branco  (espaco, tab, quebra de linha etc.)
+#   \n  = quebra de linha (LF).  \t = tabulacao.  \r = retorno de carro (CR)
+#   \.  \+  \*  \(  \)  = a barra antes de um simbolo especial do regex
+#       (. + * ( ) [ ] | ^ $ ?) serve para escapa-lo, ou seja, tratar esse
+#       simbolo como caractere literal em vez de metacaractere. Ex.: "\."
+#       casa um ponto de verdade, sem o escape "." casaria qualquer caractere.
+#   \'  = dentro do texto do regex e so um jeito de escrever o caractere
+#       aspas simples (') sem confundir com as aspas que delimitam a string
+#       do Python; para o regex em si, \' e ' teriam o mesmo efeito aqui.
+# Outros simbolos usados nos padroes (nao sao "barra", mas ajudam a ler):
+#   [...]   = classe de caracteres: casa QUALQUER UM dos caracteres listados
+#   [^...]  = classe NEGADA: casa qualquer caractere que NAO esteja listado
+#   +       = 1 ou mais repeticoes do que vem antes
+#   *       = 0 ou mais repeticoes do que vem antes
+#   |       = alternativa ("ou") entre duas opcoes
 tokens = {
     # Comentário de uma linha: // até o final da linha
+    # [^\n]* = zero ou mais caracteres que nao sejam quebra de linha
     "COMENTARIO": r"//[^\n]*",
 
     # Quebra de linha
@@ -41,15 +63,24 @@ tokens = {
 
     # Identificador inválido que começa com número
     # Exemplos: 1abc, 2x
+    # \d+ = um ou mais digitos, seguido de uma letra/underline e depois
+    # qualquer sequencia de \w (letras, digitos ou _)
     "IDENTIFICADOR_INVALIDO": r"\d+[A-Za-z_]\w*",
 
-    # Strings com aspas simples ou duplas
+    # Strings com aspas simples ou duplas: "texto" ou 'texto'.
+    # As duas alternativas (separadas por |) seguem a mesma ideia: aspas de
+    # abertura, [^"\n]*/[^'\n]* = qualquer coisa que nao seja a propria
+    # aspas nem quebra de linha, e aspas de fechamento do mesmo tipo.
+    # Isso ja contempla aspas simples normalmente - ver testes no README.
     "STRING": r'"[^"\n]*"|\'[^\'\n]*\'',
 
-    # Strings sem a aspas de fechamento
+    # Strings sem a aspas de fechamento (mesma ideia da STRING, mas sem
+    # exigir a aspas final - por isso tem que vir DEPOIS de STRING na
+    # ordem do dicionario, senao a string valida nunca seria tentada)
     "STRING_INVALIDA": r'"[^"\n]*|\'[^\'\n]*',
 
     # Números decimais: 3.14, 9.99
+    # \d+ (parte inteira) + \. (ponto literal, escapado) + \d+ (parte decimal)
     "FLOAT": r"\d+\.\d+",
 
     # Números inteiros: 0, 42, 1000
@@ -60,9 +91,10 @@ tokens = {
     "IDENTIFICADOR": r"[a-zA-Z_][a-zA-Z0-9_]*",
 
     # Operadores: ==, !=, <=, >=, =, <, >, +, -, *, /
+    # \+ e \* escapados porque + e * sozinhos seriam quantificadores
     "OPERADOR": r"==|!=|<=|>=|=|<|>|\+|-|\*|/",
 
-    # Símbolos: ovo { } ; ,
+    # Símbolos: ( ) { } ; ,
     "SIMBOLO": r"[(){};,]"
 }
 

@@ -1,6 +1,6 @@
 // Exemplo: estruturas de controle (caso_isso / se_nao_isso / loop).
 
-num contador = 0;
+int contador = 0;
 
 loop (contador < 5) {
     caso_isso (contador == 3) {
