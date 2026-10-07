@@ -56,6 +56,7 @@ examples/
   controle.mini         estruturas de controle (caso_isso / se_nao_isso / loop)
   com_erros.mini        programa com os três tipos de erro léxico propositais
   erros_sintaticos.mini programa lexicamente válido, mas com um erro de sintaxe proposital
+  precedencia.mini      expressões que mostram a precedência/associatividade dos operadores
 ```
 
 ## A linguagem
@@ -73,7 +74,9 @@ completa está no `RELATORIO.md`. Em resumo:
 
 - **Identificadores**: começam com letra ou `_`, seguidos de letras, dígitos ou `_`
 - **Literais**: inteiros (`42`), ponto flutuante (`3.14`), strings (`"texto"`)
-- **Operadores**: `+ - * / = == != < > <= >=`
+- **Operadores**: `+ - * / ^ = == != < > <= >=` (`^` é potenciação)
+- **Precedência** (maior → menor): `( )`, `^` (assoc. à direita), `-` unário,
+  `* /`, `+ -`, comparações (`== != < > <= >=`)
 - **Símbolos**: `; , ( ) { }`
 - **Comentários**: de linha, iniciados por `//`
 - **Blocos**: delimitados por `{` e `}` (não há indentação significativa)

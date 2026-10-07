@@ -23,7 +23,7 @@ Foi escolhida uma linguagem própria em português. Ela mantém a mesma quantida
 | Números inteiros | `42`, `0`, `1000`                                        |
 | Números decimais | `3.14`, `9.99`                                           |
 | Strings          | `"Ana"`, `"Ola, mundo"`                                  |
-| Operadores       | `+ - * / = == != < > <= >=`                              |
+| Operadores       | `+ - * / ^ = == != < > <= >=`                            |
 | Símbolos         | `; , ( ) { }`                                            |
 | Comentários      | `// comentário`                                          |
 
@@ -137,10 +137,30 @@ chama `bloco()`/`comando()`, que chama `expressao()`, etc). É a forma mais
 direta de escrever um parser à mão, e a gramática completa (em BNF) está
 comentada no topo do arquivo.
 
-Para simplificar, `expressao()` não separa os operadores por precedência
-(diferente do que um parser "completo" faria com `+`/`-` e `*`/`/` em
-regras separadas): ela só encadeia `termo operador termo` da esquerda pra
-direita. Isso é suficiente para tudo que os exemplos do projeto usam.
+### Precedência de operadores
+
+As expressões respeitam a prioridade das operações da matemática. Para
+isso, foi usada a técnica de *precedence climbing*: um dicionário
+`PRIORIDADE` dá um número para cada operador, e um único método
+`expressao(minima)` só junta operadores com prioridade maior ou igual a
+`minima`. Ao ler o lado direito de um operador, ele se chama de novo
+exigindo uma prioridade maior, então só operações "mais fortes" entram ali:
+
+| Prioridade | Operadores              | Associatividade |
+| ---------- | ----------------------- | --------------- |
+| 1 (maior)  | `( )`                   | —               |
+| 2          | `^` (potenciação)       | direita         |
+| 3          | `-` unário (ex.: `-x`)  | direita         |
+| 4          | `*` `/`                 | esquerda        |
+| 5          | `+` `-`                 | esquerda        |
+| 6 (menor)  | `== != < > <= >=`       | esquerda        |
+
+Assim, o operador de maior prioridade fica mais fundo na árvore e é
+calculado primeiro: `3 * 4 ^ 2` vira `3 * (4 ^ 2)`, e `2 + 3 * 4` vira
+`2 + (3 * 4)`. A potenciação é associativa à direita, como na matemática
+(`2 ^ 3 ^ 2` = `2 ^ (3 ^ 2)`), e tem prioridade sobre o menos unário
+(`-2 ^ 2` = `-(2 ^ 2)`). Os demais operadores binários são associativos à
+esquerda (`10 - 4 - 3` = `(10 - 4) - 3`).
 
 ### Árvore sintática
 
@@ -165,3 +185,7 @@ lexicamente válido, mas com um erro de sintaxe proposital (`decim total =
 ;`, faltando o valor depois do `=`). Os outros quatro exemplos da Aula 4
 continuam sendo usados como teste de regressão: devem gerar árvore
 sintática completa e nenhum erro.
+
+Também foi criado `precedencia.mini`, com expressões que misturam
+operadores de prioridades diferentes; a árvore impressa mostra a ordem em
+que cada operação seria calculada.

@@ -1,0 +1,10 @@
+// Exemplo: precedencia e associatividade dos operadores.
+// Na arvore, quem tem mais prioridade aparece mais fundo (e calculado antes).
+
+int a = 2 + 3 * 4;          // 2 + (3 * 4)
+int b = 3 * 4 ^ 2;          // 3 * (4 ^ 2)   - potencia antes da multiplicacao
+int c = 2 ^ 3 ^ 2;          // 2 ^ (3 ^ 2)   - potencia associativa a direita
+int d = 10 - 4 - 3;         // (10 - 4) - 3  - subtracao associativa a esquerda
+int e = -2 ^ 2;             // -(2 ^ 2)      - potencia antes do menos unario
+int f = (2 + 3) * 4;        // parenteses mudam a ordem
+bool g = a + 1 > b * 2;     // (a + 1) > (b * 2) - comparacao por ultimo

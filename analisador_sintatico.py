@@ -19,19 +19,24 @@
 #                | 'retorna' [ expressao ] ';'
 #                | 'mostrar' '(' expressao ')' ';'
 #                | IDENTIFICADOR ( '=' expressao | '(' argumentos ')' ) ';'
-#   expressao   := termo { OPERADOR termo }
+#   expressao   := termo { OPERADOR termo }   (respeitando PRIORIDADE)
 #   termo       := INTEIRO | FLOAT | STRING | BOOLEANO | '(' expressao ')'
-#                | IDENTIFICADOR [ '(' argumentos ')' ]
+#                | '-' termo | IDENTIFICADOR [ '(' argumentos ')' ]
 #   argumentos  := [ expressao { ',' expressao } ]
-#
-# Simplificacao proposital: "expressao" nao diferencia precedencia entre
-# operadores (+ - * / == != < > <= >=), so encadeia termo-operador-termo
-# da esquerda para a direita. Isso da conta de tudo que a linguagem deste
-# projeto usa, sem precisar de uma regra por nivel de precedencia.
 
 import sys
 from pathlib import Path
 from analisador_lexico import tokenize
+
+# Prioridade dos operadores nas expressoes: quanto maior o numero, mais
+# cedo a operacao e feita (fica mais fundo na arvore). Parenteses vem antes
+# de tudo, e o menos unario (-x) fica entre "^" e "*": -2 ^ 2 = -(2 ^ 2).
+PRIORIDADE = {
+    "==": 1, "!=": 1, "<": 1, ">": 1, "<=": 1, ">=": 1,
+    "+": 2, "-": 2,
+    "*": 3, "/": 3,
+    "^": 4,
+}
 
 
 class No:
@@ -198,15 +203,27 @@ class Parser:
         self._esperar(valor=")")
         return No("CHAMADA", nome, [args])
 
-    def expressao(self):
+    def expressao(self, minima=1):
+        #Le um termo e, enquanto vier um operador com prioridade >= minima,
+        #junta com o lado direito. O lado direito e lido exigindo prioridade
+        #maior, entao so operadores "mais fortes" entram nele:
+        #"2 + 3 * 4" vira 2 + (3 * 4) e "10 - 4 - 3" vira (10 - 4) - 3.
+        #O "^" e a excecao (associativo a direita): repete a propria
+        #prioridade, entao "2 ^ 3 ^ 2" vira 2 ^ (3 ^ 2).
         no = self.termo()
-        while self._checar("OPERADOR"):
+        while self._checar("OPERADOR") and PRIORIDADE.get(self._atual()[1], 0) >= minima:
             operador = self._avancar()[1]
-            no = No("OP", operador, [no, self.termo()])
+            proxima = PRIORIDADE[operador] + (0 if operador == "^" else 1)
+            no = No("OP", operador, [no, self.expressao(proxima)])
         return no
 
     def termo(self):
         tipo, valor, linha = self._atual()
+        if valor == "-":
+            #Menos unario: o operando so pode conter "^", entao
+            #-2 ^ 2 = -(2 ^ 2), mas -2 * 3 = (-2) * 3.
+            self._avancar()
+            return No("NEG", "-", [self.expressao(PRIORIDADE["^"])])
         if tipo in ("INTEIRO", "FLOAT", "STRING", "BOOLEANO"):
             self._avancar()
             return No(tipo, valor)

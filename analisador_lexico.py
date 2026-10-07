@@ -90,9 +90,10 @@ tokens = {
     # Exemplos: x, soma, valor1
     "IDENTIFICADOR": r"[a-zA-Z_][a-zA-Z0-9_]*",
 
-    # Operadores: ==, !=, <=, >=, =, <, >, +, -, *, /
-    # \+ e \* escapados porque + e * sozinhos seriam quantificadores
-    "OPERADOR": r"==|!=|<=|>=|=|<|>|\+|-|\*|/",
+    # Operadores: ==, !=, <=, >=, =, <, >, +, -, *, /, ^ (potenciacao)
+    # \+ e \* escapados porque + e * sozinhos seriam quantificadores;
+    # \^ escapado porque ^ sozinho significa "inicio do texto" no regex
+    "OPERADOR": r"==|!=|<=|>=|=|<|>|\+|-|\*|/|\^",
 
     # Símbolos: ( ) { } ; ,
     "SIMBOLO": r"[(){};,]"
