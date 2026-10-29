@@ -108,8 +108,16 @@ TIPOS = {"int","decim","texto","bool","void"}
 # Valores booleanos
 BOOLEANOS = {"sim","nao"}
 
-_IGNORADOS = {"ESPACO", "COMENTARIO"}
-_PADRAO = re.compile("|".join(f"(?P<{tipo}>{regex})" for tipo, regex in tokens.items()))
+def reconhecer(codigo, pos):
+    #Tenta cada padrao do dicionario "tokens", NA ORDEM, bem no comeco do
+    #resto do codigo (codigo[pos:] = o codigo a partir da posicao pos).
+    #O primeiro padrao que encaixar ganha. Devolve (tipo, lexema), ou
+    #(None, None) se nenhum padrao encaixar.
+    for tipo, regex in tokens.items():
+        achou = re.match(regex, codigo[pos:])
+        if achou:
+            return tipo, achou.group()
+    return None, None
 
 def classificar_identificador(lexema):
     #Verifica se um nome reconhecido e na verdade uma palavra reservada
@@ -136,22 +144,20 @@ def tokenize(codigo):
     pos = 0
 
     while pos < len(codigo):
-        join = _PADRAO.match(codigo, pos)
+        tipo, lexema = reconhecer(codigo, pos)
 
-        if join is None:
+        if tipo is None:
             # nenhum padrao bateu: esse caractere nao existe na linguagem
             erros.append(f"linha {linha}: caractere invalido {codigo[pos]!r}")
             pos += 1
             continue
 
-        tipo = join.lastgroup
-        lexema = join.group()
-        pos = join.end()
+        pos += len(lexema)   # pula o pedaco que acabou de ser reconhecido
 
         if tipo == "QUEBRA_DE_LINHA":
             linha += 1
-        elif tipo in _IGNORADOS:
-            pass
+        elif tipo == "ESPACO" or tipo == "COMENTARIO":
+            pass   # ignorados: nao viram token
         elif tipo == "IDENTIFICADOR_INVALIDO":
             erros.append(f"linha {linha}: identificador malformado {lexema!r} - (nao pode comecar com digito)")
         elif tipo == "STRING_INVALIDA":

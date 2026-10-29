@@ -1,0 +1,42 @@
+// Exemplo valido para a analise semantica (baseado na simulacao da Aula 9).
+// Mostra escopos (global, local, aninhado), sombreamento, recursao,
+// funcao chamando outra funcao e conversao automatica int -> decim.
+
+int gg = 4;
+
+int principal() {
+    int a = 5;
+    int b = a + 2;
+    caso_isso (b > a) {
+        int c = 4 + b;
+        a = a + c + gg;         // gg vem do escopo global
+    }
+    retorna a;
+}
+
+// recursao: fatorial chama ela mesma
+int fatorial(int n) {
+    caso_isso (n <= 1) {
+        retorna 1;
+    }
+    retorna n * fatorial(n - 1);
+}
+
+decim metade(decim valor) {
+    retorna valor / 2;          // decim / int = decim
+}
+
+// chama 'metade', que foi declarada logo acima (tem que vir antes do uso)
+decim media(int a, int b) {
+    retorna metade(a + b);      // int vira decim ao passar para o parametro
+}
+
+decim preco = 10;               // int -> decim: conversao automatica
+int x = 1;
+caso_isso (x == 1) {
+    decim x = 2.5;              // outro 'x', so dentro deste bloco (sombreamento)
+    mostrar(x);
+}
+mostrar(fatorial(5));
+mostrar(media(3, 4));
+mostrar("total: " + "ok");

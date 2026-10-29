@@ -108,16 +108,19 @@ Esses problemas foram resolvidos usando uma leitura posição por posição, aju
 
 ## 8. Como executar
 
-Para executar todos os exemplos:
+O projeto usa o `uv`, e cada etapa do compilador virou um comando
+(definido em `pyproject.toml`). Para executar todos os exemplos:
 
 ```bash
-python analisador_lexico.py
+uv run lexico
+uv run sintatico
+uv run semantico
 ```
 
 Para analisar apenas um arquivo:
 
 ```bash
-python analisador_lexico.py examples/valido.mini
+uv run lexico examples/valido.mini
 ```
 
 ## 9. Aula 5 — Análise sintática
@@ -137,34 +140,43 @@ chama `bloco()`/`comando()`, que chama `expressao()`, etc). É a forma mais
 direta de escrever um parser à mão, e a gramática completa (em BNF) está
 comentada no topo do arquivo.
 
+O código não usa classes, só funções. Duas variáveis no topo do arquivo
+guardam onde o parser está: `lista_tokens` (os tokens vindos do léxico) e
+`posicao` (o índice do token que está sendo lido). Funções pequenas leem o
+token atual (`tipo_atual()`, `valor_atual()`, `linha_atual()`), passam para
+o próximo (`avancar()`) ou exigem um token específico (`esperar_valor(";")`,
+`esperar_tipo("IDENTIFICADOR")`).
+
 ### Precedência de operadores
 
 As expressões respeitam a prioridade das operações da matemática. Para
-isso, foi usada a técnica de *precedence climbing*: um dicionário
-`PRIORIDADE` dá um número para cada operador, e um único método
-`expressao(minima)` só junta operadores com prioridade maior ou igual a
-`minima`. Ao ler o lado direito de um operador, ele se chama de novo
-exigindo uma prioridade maior, então só operações "mais fortes" entram ali:
+isso, cada nível de prioridade virou uma função, e cada uma chama a do
+nível mais forte para ler os lados da conta:
 
-| Prioridade | Operadores              | Associatividade |
-| ---------- | ----------------------- | --------------- |
-| 1 (maior)  | `( )`                   | —               |
-| 2          | `^` (potenciação)       | direita         |
-| 3          | `-` unário (ex.: `-x`)  | direita         |
-| 4          | `*` `/`                 | esquerda        |
-| 5          | `+` `-`                 | esquerda        |
-| 6 (menor)  | `== != < > <= >=`       | esquerda        |
+| Função        | Operadores              | Associatividade |
+| ------------- | ----------------------- | --------------- |
+| `expressao()` | `== != < > <= >=` (mais fraca) | esquerda |
+| `soma()`      | `+` `-`                 | esquerda        |
+| `produto()`   | `*` `/`                 | esquerda        |
+| `unario()`    | `-` unário (ex.: `-x`)  | direita         |
+| `potencia()`  | `^` (potenciação)       | direita         |
+| `termo()`     | número, nome, `( )` (mais forte) | —      |
 
-Assim, o operador de maior prioridade fica mais fundo na árvore e é
-calculado primeiro: `3 * 4 ^ 2` vira `3 * (4 ^ 2)`, e `2 + 3 * 4` vira
-`2 + (3 * 4)`. A potenciação é associativa à direita, como na matemática
-(`2 ^ 3 ^ 2` = `2 ^ (3 ^ 2)`), e tem prioridade sobre o menos unário
-(`-2 ^ 2` = `-(2 ^ 2)`). Os demais operadores binários são associativos à
-esquerda (`10 - 4 - 3` = `(10 - 4) - 3`).
+Como `soma()` chama `produto()` para ler cada lado, a multiplicação entra
+inteira dentro da soma: `2 + 3 * 4` vira `2 + (3 * 4)`. Ou seja, o operador
+de maior prioridade fica mais fundo na árvore e é calculado primeiro.
+
+O `while` dentro de `expressao()`, `soma()` e `produto()` junta várias contas
+do mesmo nível da esquerda para a direita (`10 - 4 - 3` = `(10 - 4) - 3`).
+A potenciação é associativa à direita, como na matemática
+(`2 ^ 3 ^ 2` = `2 ^ (3 ^ 2)`): em `potencia()` o lado direito chama
+`unario()` de novo, e é lá que entra a próxima potência. Ela também tem
+prioridade sobre o menos unário (`-2 ^ 2` = `-(2 ^ 2)`).
 
 ### Árvore sintática
 
-Cada função devolve um nó (classe `No`, com `tipo`, `valor` e `filhos`).
+Cada função devolve um nó: um dicionário com `tipo`, `valor`, `filhos` e
+`linha`, criado pela função `novo_no()`.
 Ao final, a árvore inteira é impressa de forma indentada — é a mesma ideia
 das árvores de expressão/comando mostradas nos slides da Aula 5 (operador
 como nó, operandos como filhos), só que aplicada à gramática real da
@@ -173,8 +185,9 @@ linguagem do projeto, e não a um exemplo abstrato.
 ### Tratamento de erros
 
 Diferente do léxico, o parser para na primeira regra que não reconhecer:
-assim que um token não bate com o esperado, ele levanta um erro com a
-linha e a análise é interrompida. Essa é a parte mais simples de
+assim que um token não bate com o esperado, `erro_sintatico()` faz um
+`raise SyntaxError(...)` com a linha, e a análise é interrompida e volta
+direto para o `except` da função `analisar()`. Essa é a parte mais simples de
 implementar (não precisa de lógica de recuperação/sincronização) e é
 suficiente para o nível deste exercício.
 
@@ -189,3 +202,100 @@ sintática completa e nenhum erro.
 Também foi criado `precedencia.mini`, com expressões que misturam
 operadores de prioridades diferentes; a árvore impressa mostra a ordem em
 que cada operação seria calculada.
+
+## 10. Aula 9 — Análise semântica
+
+A terceira etapa (`analisador_semantico.py`) recebe a árvore sintática e
+verifica se o programa faz sentido. Exemplo: `int x = sim;` está certo na
+gramática, mas guardar um `bool` numa variável `int` não faz sentido.
+
+A análise semântica só roda quando o arquivo não tem erro léxico nem
+sintático: com a árvore pela metade, apareceriam erros falsos.
+
+### Percurso da árvore
+
+O código também não usa classes, só funções. A função principal,
+`analisar_semantica()`, percorre os comandos do programa de cima para
+baixo, uma vez só. Para cada comando, `analisar_comando()` olha o tipo do nó
+(`DECL_VAR`, `SE`, `LOOP`...) e chama a função certa — é a ideia do
+*Visitor* dos slides, feita com um `if/elif`.
+
+O tipo das expressões é descoberto de baixo para cima (pós-ordem): primeiro
+o tipo dos filhos, depois o do operador. Ex.: em `x + 2.0`, `x` é `int` e
+`2.0` é `decim`, então a soma é `decim`.
+
+Como a árvore é lida uma vez só, de cima para baixo, uma variável ou função
+tem que ser declarada antes de ser usada (igual ao C). A recursão funciona
+porque a função entra na tabela antes de o corpo dela ser analisado.
+
+O andamento da análise fica em quatro variáveis no topo do arquivo
+(`escopos`, `tabela`, `erros`, `funcao_atual`), que são zeradas no começo
+de `analisar_semantica()` para cada arquivo analisado.
+
+### Tabela de símbolos
+
+É uma pilha de escopos: uma lista de dicionários `{nome: símbolo}`. Ao
+entrar num bloco `{ }`, empilha um dicionário novo; ao sair, desempilha.
+A busca vai do topo (escopo mais de dentro) até a base (global), por isso
+uma variável de dentro pode ter o mesmo nome de uma de fora (sombreamento).
+Cada símbolo guarda nome, categoria (variável, parâmetro ou função), tipo,
+escopo (global, local ou aninhado), linha e, nas funções, o tipo de cada
+parâmetro.
+
+Parâmetros e corpo da função ficam no mesmo escopo, então
+`int f(int a) { int a = 1; }` dá erro de nome repetido.
+
+### Regras de tipo
+
+| Operação              | Tipos aceitos                    | Resultado                    |
+| --------------------- | -------------------------------- | ---------------------------- |
+| `+ - * / ^`           | `int`/`decim`                    | `decim` se algum for `decim`, senão `int` |
+| `+`                   | `texto` + `texto`                | `texto`                      |
+| `< > <= >=`           | `int`/`decim`                    | `bool`                       |
+| `== !=`               | dois números ou dois do mesmo tipo | `bool`                     |
+| `-` unário            | `int`/`decim`                    | o mesmo tipo                 |
+
+Ao guardar um valor (declaração, atribuição, argumento ou `retorna`), o
+tipo tem que ser igual. A única conversão automática é `int` → `decim`,
+que não perde nada; `decim` → `int` dá erro, porque perderia a parte
+decimal.
+
+### Erros detectados
+
+* variável ou função não declarada;
+* nome repetido no mesmo escopo (variável, parâmetro ou função);
+* tipos incompatíveis em contas, comparações, declarações e atribuições;
+* variável ou parâmetro do tipo `void`;
+* chamada com quantidade ou tipo de argumento errado;
+* chamar uma variável como função, ou usar uma função sem `( )`;
+* `retorna` com tipo errado, com valor numa função `void`, sem valor numa
+  função que não é `void`, ou fora de função;
+* função que não é `void` sem nenhum `retorna`;
+* condição de `caso_isso`/`loop` que não é `bool`;
+* `mostrar` de uma função `void`;
+* função declarada dentro de um bloco.
+
+Como no léxico, o analisador anota o erro e continua. Uma expressão com
+erro recebe o tipo `erro`, que é aceito em qualquer lugar: assim um único
+erro não gera uma cascata de erros falsos. Os erros saem ordenados pela
+linha, no formato `linha 16: variavel 'z' nao declarada`.
+
+Para ter a linha nas mensagens, o analisador sintático guarda a linha em
+cada nó da árvore (`no["linha"]`).
+
+### Testes
+
+* `semantica.mini` — programa válido, baseado na simulação da aula
+  (escopos global, local e aninhado), com sombreamento, recursão, função
+  chamando outra função e conversão `int` → `decim`;
+* `erros_semanticos.mini` — um erro de cada tipo, com um comentário em
+  cada linha dizendo qual é o erro esperado.
+
+Os exemplos das aulas anteriores continuam passando sem erro.
+
+Para executar:
+
+```bash
+uv run semantico
+uv run semantico examples/semantica.mini
+```

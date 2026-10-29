@@ -1,0 +1,72 @@
+// Exemplo com erros semanticos propositais.
+// Lexica e sintaxe estao corretas: os erros so aparecem na analise
+// semantica. Cada linha com erro tem um comentario dizendo qual e.
+
+int soma(int a, int b) {
+    retorna a + b;
+}
+
+void saudacao(texto nome) {
+    mostrar("Ola, " + nome);
+}
+
+// --- variaveis nao declaradas e repetidas ---
+int x = 5;
+int x = 10;                 // ERRO: 'x' ja declarado neste escopo
+int b = x + z;              // ERRO: 'z' nao declarada
+w = 3;                      // ERRO: 'w' nao declarada
+
+// --- tipos incompativeis ---
+int n = sim;                // ERRO: int <- bool
+decim d = "texto";          // ERRO: decim <- texto
+bool t = 3.14 + 1;          // ERRO: bool <- decim
+int i = 3.7;                // ERRO: int <- decim (perderia a parte decimal)
+int s = 3 + sim;            // ERRO: int + bool
+texto m = "nota: " + 10;    // ERRO: texto + int
+bool menor = "a" < "b";     // ERRO: < so compara numeros
+void v;                     // ERRO: variavel nao pode ser void
+
+// --- chamadas de funcao ---
+soma(3, "texto");           // ERRO: 2o argumento deveria ser int
+soma(3);                    // ERRO: faltou argumento
+soma(3, 4, 5);              // ERRO: argumento a mais
+dividir(10, 2);             // ERRO: funcao nao declarada
+x(1);                       // ERRO: x e variavel, nao funcao
+int k = soma;               // ERRO: soma e funcao (faltou chamar)
+mostrar(saudacao("Ana"));   // ERRO: saudacao e void, nao tem valor
+int r = saudacao("Bia");    // ERRO: int <- void
+
+// --- retorno de funcao ---
+int dobro(int valor) {
+    retorna "dois";         // ERRO: funcao int retornando texto
+}
+
+void avisar() {
+    retorna 1;              // ERRO: funcao void retornando valor
+}
+
+int vazia() {
+    retorna;                // ERRO: funcao int retornando sem valor
+}
+
+int sem_retorno(int a, int a) {   // ERRO: parametro 'a' repetido / ERRO: falta 'retorna'
+    mostrar(a);
+}
+
+int soma(int c, int d) {    // ERRO: funcao 'soma' ja declarada
+    retorna c + d;
+}
+
+retorna 0;                  // ERRO: retorna fora de funcao
+
+// --- condicoes e escopo ---
+caso_isso (x + 1) {         // ERRO: condicao precisa ser bool
+    int y = 1;
+}
+mostrar(y);                 // ERRO: 'y' so existia dentro do bloco acima
+
+loop (sim) {
+    int interna(int q) {    // ERRO: funcao dentro de bloco
+        retorna q;
+    }
+}
