@@ -27,7 +27,9 @@
 #
 #   Expressoes: uma regra para cada nivel de prioridade, da mais fraca
 #   (feita por ultimo) para a mais forte (feita primeiro):
-#   expressao   := soma { ( '==' | '!=' | '<' | '>' | '<=' | '>=' ) soma }
+#   expressao   := e_logico { '||' e_logico }
+#   e_logico    := comparacao { '&&' comparacao }
+#   comparacao  := soma { ( '==' | '!=' | '<' | '>' | '<=' | '>=' ) soma }
 #   soma        := produto { ( '+' | '-' ) produto }
 #   produto     := unario { ( '*' | '/' ) unario }
 #   unario      := '-' unario | potencia
@@ -268,7 +270,29 @@ def chamada(nome, linha):
 # "10 - 4 - 3" vira (10 - 4) - 3.
 
 def expressao():
-    # nivel mais fraco: comparacoes (a < b, x == 10)
+    # nivel mais fraco: OU logico (a || b). E o ultimo a ser calculado:
+    # "a > 1 || b < 2 && c" vira (a > 1) || ((b < 2) && c)
+    no = e_logico()
+    while valor_atual() == "||":
+        linha = linha_atual()
+        operador = avancar()
+        no = novo_no("OP", operador, [no, e_logico()], linha)
+    return no
+
+
+def e_logico():
+    # E logico (a && b): vem antes do OU, igual em C/Java
+    no = comparacao()
+    while valor_atual() == "&&":
+        linha = linha_atual()
+        operador = avancar()
+        no = novo_no("OP", operador, [no, comparacao()], linha)
+    return no
+
+
+def comparacao():
+    # comparacoes (a < b, x == 10): vem antes do E/OU, entao
+    # "x > 0 && x < 10" vira (x > 0) && (x < 10)
     no = soma()
     while valor_atual() in ["==", "!=", "<", ">", "<=", ">="]:
         linha = linha_atual()
@@ -358,6 +382,8 @@ def analisar(codigo):
 def imprimir_arvore(no, profundidade=0):
     #Imprime a arvore indentada (2 espacos por nivel). Ela chama ela mesma
     #para cada filho, um nivel mais para dentro.
+    #Percurso em PRE-ORDEM: primeiro imprime o proprio no, depois os
+    #filhos (da esquerda para a direita) - por isso o pai aparece em cima.
     prefixo = "  " * profundidade
     if no["valor"] is not None:
         print(f"{prefixo}{no['tipo']} ({no['valor']})")

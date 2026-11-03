@@ -90,9 +90,10 @@ completa está no `RELATORIO.md`. Em resumo:
 
 - **Identificadores**: começam com letra ou `_`, seguidos de letras, dígitos ou `_`
 - **Literais**: inteiros (`42`), ponto flutuante (`3.14`), strings (`"texto"`)
-- **Operadores**: `+ - * / ^ = == != < > <= >=` (`^` é potenciação)
+- **Operadores**: `+ - * / ^ = == != < > <= >= && ||` (`^` é potenciação,
+  `&&` é o E lógico e `||` é o OU lógico)
 - **Precedência** (maior → menor): `( )`, `^` (assoc. à direita), `-` unário,
-  `* /`, `+ -`, comparações (`== != < > <= >=`)
+  `* /`, `+ -`, comparações (`== != < > <= >=`), `&&`, `||`
 - **Símbolos**: `; , ( ) { }`
 - **Comentários**: de linha, iniciados por `//`
 - **Blocos**: delimitados por `{` e `}` (não há indentação significativa)

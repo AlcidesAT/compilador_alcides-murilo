@@ -13,9 +13,20 @@
 #  - chamada de funcao: quantidade e tipo dos argumentos
 #  - retorna: tipo do valor devolvido pela funcao
 #  - condicao do caso_isso / loop precisa ser bool
+#  - E/OU logico (&& ||) so com bool
 
 #A arvore e lida UMA vez, de cima para baixo. Por isso, como no C, uma
 #variavel ou funcao tem que ser declarada antes de ser usada.
+
+#Percurso da arvore: em profundidade, filhos da esquerda para a direita.
+#  - COMANDOS em PRE-ORDEM: o no e tratado antes de descer nos filhos
+#    (a funcao entra na tabela antes do corpo, o escopo e aberto antes
+#    do bloco). Funcoes: analisar_semantica -> analisar_comando ->
+#    analisar_funcao / analisar_bloco.
+#  - EXPRESSOES em POS-ORDEM: primeiro o tipo dos filhos, depois o do
+#    operador. Funcoes: tipo_da_expressao -> tipo_da_operacao.
+#  - Excecao: em "int x = valor;" o valor e analisado antes de declarar
+#    o x (pos-ordem), ver analisar_declaracao.
 
 #Tabela de simbolos: e uma PILHA de escopos. Cada escopo e um dicionario
 #{nome: simbolo}. Ao entrar num bloco { } empilha um dicionario novo; ao
@@ -29,6 +40,7 @@
 #    decim NAO pode ser guardado num int (perderia a parte decimal).
 #  - "+" tambem junta dois textos: "Ola, " + nome.
 #  - comparacoes (== != < > <= >=) dao bool; < > <= >= so com numeros.
+#  - && e || so juntam dois bool, e dao bool.
 
 #Quando acha um erro, o programa anota e continua. A expressao com erro
 #ganha o tipo "erro", que e aceito em qualquer lugar - assim um unico
@@ -53,6 +65,7 @@ TIPO_DO_LITERAL = {
 NUMEROS = ["int", "decim"]
 ARITMETICOS = ["+", "-", "*", "/", "^"]
 COMPARACOES = ["<", ">", "<=", ">="]
+LOGICOS = ["&&", "||"]
 # "==" e "!=" nao estao nas listas: aceitam qualquer par de tipos iguais
 
 # Variaveis que guardam o andamento da analise. Elas sao zeradas no
@@ -146,6 +159,8 @@ def buscar(nome):
 
 def analisar_comando(no):
     #Olha o tipo do no e chama a funcao que sabe analisar aquele comando.
+    #PRE-ORDEM: o comando e tratado aqui e so depois seus filhos (blocos,
+    #corpo da funcao) sao visitados.
     tipo = no["tipo"]
     if tipo == "DECL_VAR":
         analisar_declaracao(no)
@@ -190,7 +205,8 @@ def analisar_declaracao(no):
         erro(no["linha"], f"variavel '{nome}' nao pode ser void (void e so para funcao)")
         tipo = "erro"
     # o valor e analisado ANTES de declarar: em "int x = x;" o x da
-    # direita tem que ser outro x, ja declarado antes
+    # direita tem que ser outro x, ja declarado antes (aqui e pos-ordem:
+    # primeiro o filho, depois o proprio no)
     if no["filhos"]:
         tipo_valor = tipo_da_expressao(no["filhos"][0])
         if not pode_guardar(tipo, tipo_valor):
@@ -222,8 +238,8 @@ def analisar_funcao(no):
     parametros = no["filhos"][:-1]   # todos os filhos menos o ultimo sao os PARAM
     corpo = no["filhos"][-1]         # o ultimo filho e o BLOCO com o corpo
 
-    # a funcao entra na tabela ANTES do corpo: assim ela pode chamar ela
-    # mesma (recursao)
+    # a funcao entra na tabela ANTES do corpo (pre-ordem): assim ela pode
+    # chamar ela mesma (recursao)
     tipos_parametros = []
     for parametro in parametros:
         tipo_parametro, nome_parametro = parametro["valor"].split()
@@ -335,6 +351,7 @@ def tipo_da_chamada(no):
 
 
 def tipo_da_operacao(no):
+    # pos-ordem: primeiro o tipo dos dois filhos, depois o do operador
     operador = no["valor"]
     esquerda = tipo_da_expressao(no["filhos"][0])
     direita = tipo_da_expressao(no["filhos"][1])
@@ -353,6 +370,9 @@ def tipo_da_operacao(no):
             return "texto"       # juntar dois textos
     elif operador in COMPARACOES:
         if dois_numeros:
+            return "bool"
+    elif operador in LOGICOS:
+        if esquerda == "bool" and direita == "bool":
             return "bool"
     else:   # "==" e "!="
         if dois_numeros or (esquerda == direita and esquerda != "void"):

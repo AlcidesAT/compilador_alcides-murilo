@@ -1,6 +1,6 @@
 // Exemplo valido para a analise semantica (baseado na simulacao da Aula 9).
 // Mostra escopos (global, local, aninhado), sombreamento, recursao,
-// funcao chamando outra funcao e conversao automatica int -> decim.
+// funcao chamando outra funcao, conversao int -> decim e E/OU (&& ||).
 
 int gg = 4;
 
@@ -40,3 +40,4 @@ caso_isso (x == 1) {
 mostrar(fatorial(5));
 mostrar(media(3, 4));
 mostrar("total: " + "ok");
+bool no_intervalo = x >= 1 && x <= 10 || preco == 0;   // E/OU juntam dois bool

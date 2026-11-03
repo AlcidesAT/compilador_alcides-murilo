@@ -1,5 +1,3 @@
-Claro. Vou deixar mais simples, direto e com uma linguagem mais natural, mas mantendo as informações importantes do relatório. 
-
 ## 1. Objetivo
 
 O objetivo do projeto é criar, em Python, um analisador léxico para uma linguagem fictícia parecida com C/Java.
@@ -23,7 +21,7 @@ Foi escolhida uma linguagem própria em português. Ela mantém a mesma quantida
 | Números inteiros | `42`, `0`, `1000`                                        |
 | Números decimais | `3.14`, `9.99`                                           |
 | Strings          | `"Ana"`, `"Ola, mundo"`                                  |
-| Operadores       | `+ - * / ^ = == != < > <= >=`                            |
+| Operadores       | `+ - * / ^ = == != < > <= >= && \|\|`                    |
 | Símbolos         | `; , ( ) { }`                                            |
 | Comentários      | `// comentário`                                          |
 
@@ -155,7 +153,9 @@ nível mais forte para ler os lados da conta:
 
 | Função        | Operadores              | Associatividade |
 | ------------- | ----------------------- | --------------- |
-| `expressao()` | `== != < > <= >=` (mais fraca) | esquerda |
+| `expressao()` | `\|\|` OU lógico (mais fraca) | esquerda  |
+| `e_logico()`  | `&&` E lógico           | esquerda        |
+| `comparacao()`| `== != < > <= >=`       | esquerda        |
 | `soma()`      | `+` `-`                 | esquerda        |
 | `produto()`   | `*` `/`                 | esquerda        |
 | `unario()`    | `-` unário (ex.: `-x`)  | direita         |
@@ -166,8 +166,13 @@ Como `soma()` chama `produto()` para ler cada lado, a multiplicação entra
 inteira dentro da soma: `2 + 3 * 4` vira `2 + (3 * 4)`. Ou seja, o operador
 de maior prioridade fica mais fundo na árvore e é calculado primeiro.
 
-O `while` dentro de `expressao()`, `soma()` e `produto()` junta várias contas
-do mesmo nível da esquerda para a direita (`10 - 4 - 3` = `(10 - 4) - 3`).
+Os operadores lógicos ficam nos dois níveis mais fracos, como em C/Java:
+`&&` (E) vem antes de `||` (OU), e os dois vêm depois das comparações.
+Assim `a > 1 || b < 2 && c == 3` vira `(a > 1) || ((b < 2) && (c == 3))`.
+
+O `while` dentro de `expressao()`, `e_logico()`, `comparacao()`, `soma()` e
+`produto()` junta várias contas do mesmo nível da esquerda para a direita
+(`10 - 4 - 3` = `(10 - 4) - 3`).
 A potenciação é associativa à direita, como na matemática
 (`2 ^ 3 ^ 2` = `2 ^ (3 ^ 2)`): em `potencia()` o lado direito chama
 `unario()` de novo, e é lá que entra a próxima potência. Ela também tem
@@ -177,7 +182,9 @@ prioridade sobre o menos unário (`-2 ^ 2` = `-(2 ^ 2)`).
 
 Cada função devolve um nó: um dicionário com `tipo`, `valor`, `filhos` e
 `linha`, criado pela função `novo_no()`.
-Ao final, a árvore inteira é impressa de forma indentada — é a mesma ideia
+Ao final, a árvore inteira é impressa de forma indentada por
+`imprimir_arvore()`, que percorre a árvore em **pré-ordem** (imprime o nó e
+depois os filhos, por isso o pai aparece acima deles) — é a mesma ideia
 das árvores de expressão/comando mostradas nos slides da Aula 5 (operador
 como nó, operandos como filhos), só que aplicada à gramática real da
 linguagem do projeto, e não a um exemplo abstrato.
@@ -220,9 +227,17 @@ baixo, uma vez só. Para cada comando, `analisar_comando()` olha o tipo do nó
 (`DECL_VAR`, `SE`, `LOOP`...) e chama a função certa — é a ideia do
 *Visitor* dos slides, feita com um `if/elif`.
 
-O tipo das expressões é descoberto de baixo para cima (pós-ordem): primeiro
-o tipo dos filhos, depois o do operador. Ex.: em `x + 2.0`, `x` é `int` e
-`2.0` é `decim`, então a soma é `decim`.
+O percurso é em profundidade, com os filhos visitados da esquerda para a
+direita. A ordem depende do tipo de nó:
+
+| Parte da árvore | Ordem | Onde no código | Por quê |
+| --------------- | ----- | -------------- | ------- |
+| Comandos (`DECL_FUNCAO`, `SE`, `LOOP`, `BLOCO`...) | **pré-ordem** | `analisar_comando()`, `analisar_funcao()`, `analisar_bloco()` | a função entra na tabela antes do corpo (recursão) e o escopo é aberto antes de visitar o bloco |
+| Expressões (`OP`, `NEG`, `CHAMADA`...) | **pós-ordem** | `tipo_da_expressao()`, `tipo_da_operacao()` | o tipo do operador depende do tipo dos filhos |
+| `int x = valor;` | **pós-ordem** | `analisar_declaracao()` | o valor é analisado antes de declarar o `x`, então em `int x = x;` o `x` da direita é outro, de antes |
+
+Exemplo de pós-ordem: em `x + 2.0`, primeiro descobre que `x` é `int` e
+`2.0` é `decim`, e só depois que a soma é `decim`.
 
 Como a árvore é lida uma vez só, de cima para baixo, uma variável ou função
 tem que ser declarada antes de ser usada (igual ao C). A recursão funciona
@@ -253,6 +268,7 @@ Parâmetros e corpo da função ficam no mesmo escopo, então
 | `+`                   | `texto` + `texto`                | `texto`                      |
 | `< > <= >=`           | `int`/`decim`                    | `bool`                       |
 | `== !=`               | dois números ou dois do mesmo tipo | `bool`                     |
+| `&& \|\|`             | `bool` e `bool`                  | `bool`                       |
 | `-` unário            | `int`/`decim`                    | o mesmo tipo                 |
 
 Ao guardar um valor (declaração, atribuição, argumento ou `retorna`), o
@@ -287,7 +303,7 @@ cada nó da árvore (`no["linha"]`).
 
 * `semantica.mini` — programa válido, baseado na simulação da aula
   (escopos global, local e aninhado), com sombreamento, recursão, função
-  chamando outra função e conversão `int` → `decim`;
+  chamando outra função, conversão `int` → `decim` e os operadores `&&`/`||`;
 * `erros_semanticos.mini` — um erro de cada tipo, com um comentário em
   cada linha dizendo qual é o erro esperado.
 

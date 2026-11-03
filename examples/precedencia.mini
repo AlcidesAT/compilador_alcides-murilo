@@ -7,4 +7,6 @@ int c = 2 ^ 3 ^ 2;          // 2 ^ (3 ^ 2)   - potencia associativa a direita
 int d = 10 - 4 - 3;         // (10 - 4) - 3  - subtracao associativa a esquerda
 int e = -2 ^ 2;             // -(2 ^ 2)      - potencia antes do menos unario
 int f = (2 + 3) * 4;        // parenteses mudam a ordem
-bool g = a + 1 > b * 2;     // (a + 1) > (b * 2) - comparacao por ultimo
+bool g = a + 1 > b * 2;     // (a + 1) > (b * 2) - comparacao depois das contas
+bool h = a > 1 || b < 2 && c == 3;    // (a > 1) || ((b < 2) && (c == 3)) - && antes de ||
+bool i = (a > 1 || b < 2) && c == 3;  // parenteses fazem o || vir antes

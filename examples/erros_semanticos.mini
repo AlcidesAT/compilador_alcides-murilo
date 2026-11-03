@@ -24,6 +24,7 @@ int i = 3.7;                // ERRO: int <- decim (perderia a parte decimal)
 int s = 3 + sim;            // ERRO: int + bool
 texto m = "nota: " + 10;    // ERRO: texto + int
 bool menor = "a" < "b";     // ERRO: < so compara numeros
+bool logico = x && sim;     // ERRO: && so junta bool (x e int)
 void v;                     // ERRO: variavel nao pode ser void
 
 // --- chamadas de funcao ---
