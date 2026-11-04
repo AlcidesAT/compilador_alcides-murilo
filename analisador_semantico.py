@@ -5,15 +5,34 @@
 #programa FAZ SENTIDO. Exemplo: "int x = sim;" esta certo na gramatica,
 #mas guardar um bool numa variavel int nao faz sentido.
 
-#O que e verificado:
+#O que e verificado (com exemplos):
 #  - variavel ou funcao usada sem ter sido declarada
+#        int b = z + 1;           -> erro: 'z' nao foi declarada
+#        dividir(10, 2);          -> erro: funcao 'dividir' nao declarada
 #  - nome declarado duas vezes no mesmo escopo
+#        int x = 5;
+#        int x = 10;              -> erro: 'x' ja foi declarado neste escopo
 #  - tipos nas contas e comparacoes (ex.: int + bool nao pode)
+#        int s = 3 + sim;         -> erro: int + bool
+#        bool m = "a" < "b";      -> erro: < so compara numeros
+#        decim d = 2.5 * 2;       -> ok: decim * int da decim
 #  - tipo do valor guardado numa variavel (declaracao e atribuicao)
+#        int n = sim;             -> erro: bool nao cabe em int
+#        int i = 3.7;             -> erro: decim nao cabe em int
+#        decim p = 10;            -> ok: int vira decim
 #  - chamada de funcao: quantidade e tipo dos argumentos
+#    (com "int soma(int a, int b)" declarada antes)
+#        soma(3);                 -> erro: espera 2 argumentos, recebeu 1
+#        soma(3, "oi");           -> erro: argumento 2 deveria ser int
 #  - retorna: tipo do valor devolvido pela funcao
+#        int dobro(int v) { retorna "dois"; }   -> erro: int devolvendo texto
+#        void avisar() { retorna 1; }           -> erro: void nao devolve valor
 #  - condicao do caso_isso / loop precisa ser bool
+#        caso_isso (x + 1) { ... }  -> erro: a condicao e int
+#        loop (x < 10) { ... }      -> ok: x < 10 da bool
 #  - E/OU logico (&& ||) so com bool
+#        bool r = x && sim;          -> erro: x e int
+#        bool ok = x > 0 && x < 10;  -> ok: bool && bool
 
 #A arvore e lida UMA vez, de cima para baixo. Por isso, como no C, uma
 #variavel ou funcao tem que ser declarada antes de ser usada.
