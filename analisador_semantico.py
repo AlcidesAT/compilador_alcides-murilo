@@ -1,79 +1,43 @@
 #Analisador Semantico - Trabalho Pratico (Aula 9: Analise Semantica)
 
-#Este programa faz a terceira etapa do compilador: recebe a arvore
-#sintatica (montada pelo analisador_sintatico.py) e verifica se o
-#programa FAZ SENTIDO. Exemplo: "int x = sim;" esta certo na gramatica,
-#mas guardar um bool numa variavel int nao faz sentido.
+#Terceira etapa do compilador:
+#  1. lexico     - as palavras existem?
+#  2. sintatico  - a frase esta bem escrita?
+#  3. semantico  - a frase FAZ SENTIDO?   (este arquivo)
+#Ex.: "int x = sim;" esta bem escrito, mas bool nao cabe em int.
 
-#O que e verificado (com exemplos):
-#  - variavel ou funcao usada sem ter sido declarada
-#        int b = z + 1;           -> erro: 'z' nao foi declarada
-#        dividir(10, 2);          -> erro: funcao 'dividir' nao declarada
-#  - nome declarado duas vezes no mesmo escopo
-#        int x = 5;
-#        int x = 10;              -> erro: 'x' ja foi declarado neste escopo
-#  - tipos nas contas e comparacoes (ex.: int + bool nao pode)
-#        int s = 3 + sim;         -> erro: int + bool
-#        bool m = "a" < "b";      -> erro: < so compara numeros
-#        decim d = 2.5 * 2;       -> ok: decim * int da decim
-#  - tipo do valor guardado numa variavel (declaracao e atribuicao)
-#        int n = sim;             -> erro: bool nao cabe em int
-#        int i = 3.7;             -> erro: decim nao cabe em int
-#        decim p = 10;            -> ok: int vira decim
-#  - chamada de funcao: quantidade e tipo dos argumentos
-#    (com "int soma(int a, int b)" declarada antes)
-#        soma(3);                 -> erro: espera 2 argumentos, recebeu 1
-#        soma(3, "oi");           -> erro: argumento 2 deveria ser int
-#  - retorna: tipo do valor devolvido pela funcao
-#        int dobro(int v) { retorna "dois"; }   -> erro: int devolvendo texto
-#        void avisar() { retorna 1; }           -> erro: void nao devolve valor
-#  - condicao do caso_isso / loop precisa ser bool
-#        caso_isso (x + 1) { ... }  -> erro: a condicao e int
-#        loop (x < 10) { ... }      -> ok: x < 10 da bool
-#  - E/OU logico (&& ||) so com bool
-#        bool r = x && sim;          -> erro: x e int
-#        bool ok = x > 0 && x < 10;  -> ok: bool && bool
+#O que e verificado:
+#  - nome usado sem ser declarado        mostrar(z);
+#  - nome declarado duas vezes           int x = 5;  int x = 10;
+#  - tipos nas contas e comparacoes      3 + sim
+#  - tipo do valor guardado              int n = sim;
+#  - argumentos da funcao                soma(3);  (soma precisa de 2)
+#  - tipo do retorna                     int f() { retorna "oi"; }
+#  - condicao do caso_isso / loop        caso_isso (x + 1)  (nao e bool)
+#  - && e || so com bool                 x && sim  (x e int)
 
-#A arvore e lida UMA vez, de cima para baixo. Por isso, como no C, uma
-#variavel ou funcao tem que ser declarada antes de ser usada.
+#Escopos: cada { } e uma "caixinha" com os nomes criados dentro dela. A
+#lista "escopos" guarda as caixinhas abertas; a primeira e a global.
+#    int x = 5;              escopos = [ {x} ]
+#    caso_isso (x > 0) {     escopos = [ {x}, {} ]
+#        int y = 1;          escopos = [ {x}, {y} ]
+#    }                       escopos = [ {x} ]     <- o y sumiu
+#So entram nomes criados: variaveis, funcoes e parametros.
 
-#Percurso da arvore: em profundidade, filhos da esquerda para a direita.
-#  - COMANDOS em PRE-ORDEM: o no e tratado antes de descer nos filhos
-#    (a funcao entra na tabela antes do corpo, o escopo e aberto antes
-#    do bloco). Funcoes: analisar_semantica -> analisar_comando ->
-#    analisar_funcao / analisar_bloco.
-#  - EXPRESSOES em POS-ORDEM: primeiro o tipo dos filhos, depois o do
-#    operador. Funcoes: tipo_da_expressao -> tipo_da_operacao.
-#  - Excecao: em "int x = valor;" o valor e analisado antes de declarar
-#    o x (pos-ordem), ver analisar_declaracao.
+#Percurso da arvore:
+#  - comandos em PRE-ORDEM: primeiro o no, depois os filhos
+#    (a funcao e anotada antes do corpo, para permitir recursao)
+#  - expressoes em POS-ORDEM: primeiro os filhos, depois o no
+#    (em a + b, primeiro o tipo de a e b, depois o do +)
 
-#Tabela de simbolos: e uma PILHA de escopos. Cada escopo e um dicionario
-#{nome: simbolo}. Ao entrar num bloco { } empilha um dicionario novo; ao
-#sair, desempilha. Para achar um nome, procura do topo (escopo mais de
-#dentro) ate a base (escopo global) - por isso uma variavel de dentro pode
-#ter o mesmo nome de uma de fora (sombreamento).
-
-#Regras de tipo da linguagem:
-#  - int e decim sao numeros. Conta misturando int com decim da decim.
-#  - um int pode ser guardado num decim (conversao automatica), mas um
-#    decim NAO pode ser guardado num int (perderia a parte decimal).
-#  - "+" tambem junta dois textos: "Ola, " + nome.
-#  - comparacoes (== != < > <= >=) dao bool; < > <= >= so com numeros.
-#  - && e || so juntam dois bool, e dao bool.
-
-#Quando acha um erro, o programa anota e continua. A expressao com erro
-#ganha o tipo "erro", que e aceito em qualquer lugar - assim um unico
-#erro nao gera uma cascata de outros erros falsos.
-
-#Para testar: sem nenhum argumento, roda sobre todos os arquivos de
-#exemplo da pasta examples/.
+#Quando acha um erro, anota e continua. A expressao com erro ganha o tipo
+#"erro", que e aceito em qualquer lugar, para nao repetir o mesmo erro.
 
 import sys
 from pathlib import Path
 from analisador_sintatico import analisar
 
-# Tipo de cada valor escrito direto no codigo (o "tipo" do no da arvore
-# e o tipo do token que veio do analisador lexico)
+# Tipo de cada valor escrito direto no codigo (ex.: 10 e int)
 TIPO_DO_LITERAL = {
     "INTEIRO": "int",
     "FLOAT": "decim",
@@ -87,57 +51,59 @@ COMPARACOES = ["<", ">", "<=", ">="]
 LOGICOS = ["&&", "||"]
 # "==" e "!=" nao estao nas listas: aceitam qualquer par de tipos iguais
 
-# Variaveis que guardam o andamento da analise. Elas sao zeradas no
-# comeco de analisar_semantica(), antes de cada arquivo.
-escopos = [{}]        # pilha de escopos; o primeiro e o global
-tabela = []           # todos os simbolos declarados, na ordem (para imprimir)
-erros = []            # erros encontrados: lista de (linha, mensagem)
-funcao_atual = None   # funcao sendo analisada agora (None = fora de funcao)
+# Memoria da analise (zerada no comeco de cada arquivo)
+escopos = [{}]        # caixinhas de nomes; a primeira e a global
+tabela = []           # todos os nomes criados (para imprimir no fim)
+erros = []            # erros encontrados: (linha, mensagem)
+funcao_atual = None   # funcao sendo conferida agora (None = fora de funcao)
 
 
 def analisar_semantica(arvore):
-    #Funcao principal: analisa a arvore inteira, comando por comando.
-    #Devolve a tabela de simbolos e a lista de erros.
-    global escopos, tabela, erros, funcao_atual   # "global": vai trocar as variaveis la de cima
+    #Funcao principal: zera tudo, confere cada comando do programa e
+    #devolve a tabela e os erros.
+    global escopos, tabela, erros, funcao_atual   # troca as variaveis la de cima
     escopos = [{}]
     tabela = []
     erros = []
     funcao_atual = None
 
-    for no in arvore["filhos"]:
+    for no in arvore["filhos"]:   # os comandos do programa, um por vez
         analisar_comando(no)
 
-    erros.sort()   # ordena os erros pela linha
+    erros.sort()   # ordena pela linha
     return tabela, erros
 
 
 def erro(linha, mensagem):
+    #Anota um erro e deixa a analise continuar.
     erros.append((linha, mensagem))
 
 
 def pode_guardar(tipo_destino, tipo_valor):
-    #Diz se um valor do tipo "tipo_valor" pode ser guardado num lugar
-    #(variavel, parametro ou retorno) do tipo "tipo_destino".
+    #Diz se o valor cabe no lugar. Ex.: int em decim cabe, bool em int nao.
     if tipo_destino == "erro" or tipo_valor == "erro":
-        return True   # o erro ja foi avisado antes, nao reclama de novo
+        return True   # o erro ja foi avisado, nao repete
     if tipo_destino == tipo_valor:
         return True
     if tipo_destino == "decim" and tipo_valor == "int":
-        return True   # int vira decim sem perder nada (coercao)
+        return True   # 10 vira 10.0
     return False
 
 
 # --------------------------- tabela de simbolos ---------------------------
 
 def entrar_escopo():
+    #Abriu "{": coloca uma caixinha nova.
     escopos.append({})
 
 
 def sair_escopo():
+    #Fechou "}": tira a ultima caixinha (os nomes de dentro somem).
     escopos.pop()
 
 
 def nome_do_escopo():
+    #So para a coluna ESCOPO da tabela.
     if len(escopos) == 1:
         return "global"
     if len(escopos) == 2:
@@ -146,13 +112,13 @@ def nome_do_escopo():
 
 
 def declarar(nome, categoria, tipo, linha, parametros=None):
-    #Coloca o nome no escopo atual (o do topo da pilha). So e erro se o
-    #nome ja existir NESTE escopo - num escopo de fora pode.
+    #Anota um nome NOVO na ultima caixinha. Erro se ele ja estiver nela.
     escopo_atual = escopos[-1]
     if nome in escopo_atual:
         linha_anterior = escopo_atual[nome]["linha"]
         erro(linha, f"'{nome}' ja foi declarado neste escopo (na linha {linha_anterior})")
         return
+    # a "ficha" do nome (cada ficha e uma linha da tabela)
     simbolo = {
         "nome": nome,
         "categoria": categoria,      # "variavel", "parametro" ou "funcao"
@@ -166,8 +132,8 @@ def declarar(nome, categoria, tipo, linha, parametros=None):
 
 
 def buscar(nome):
-    #Procura o nome do escopo mais de dentro para o mais de fora.
-    #Devolve o simbolo, ou None se o nome nao foi declarado.
+    #Procura um nome USADO, da ultima caixinha para a primeira.
+    #Devolve a ficha, ou None se nao foi declarado.
     for escopo in reversed(escopos):
         if nome in escopo:
             return escopo[nome]
@@ -177,34 +143,33 @@ def buscar(nome):
 # -------------------------------- comandos --------------------------------
 
 def analisar_comando(no):
-    #Olha o tipo do no e chama a funcao que sabe analisar aquele comando.
-    #PRE-ORDEM: o comando e tratado aqui e so depois seus filhos (blocos,
-    #corpo da funcao) sao visitados.
+    #Ve que comando e e chama a funcao certa (pre-ordem).
     tipo = no["tipo"]
-    if tipo == "DECL_VAR":
+    if tipo == "DECL_VAR":                 # int x = 5;
         analisar_declaracao(no)
-    elif tipo == "DECL_FUNCAO":
+    elif tipo == "DECL_FUNCAO":            # int soma(int a, int b) { ... }
         analisar_funcao(no)
-    elif tipo == "ATRIBUICAO":
+    elif tipo == "ATRIBUICAO":             # x = 10;
         analisar_atribuicao(no)
-    elif tipo == "CHAMADA":
-        tipo_da_chamada(no)   # chamada sozinha: o valor devolvido e ignorado
-    elif tipo == "SE":
+    elif tipo == "CHAMADA":                # soma(1, 2);
+        tipo_da_chamada(no)
+    elif tipo == "SE":                     # caso_isso (...) { ... }
         checar_condicao(no, "caso_isso")
-        for bloco in no["filhos"][1:]:   # bloco do caso_isso e, se tiver, do se_nao_isso
+        for bloco in no["filhos"][1:]:     # pula a condicao, pega os blocos
             analisar_bloco(bloco)
-    elif tipo == "LOOP":
+    elif tipo == "LOOP":                   # loop (...) { ... }
         checar_condicao(no, "loop")
         analisar_bloco(no["filhos"][1])
-    elif tipo == "RETORNA":
+    elif tipo == "RETORNA":                # retorna x;
         analisar_retorna(no)
-    elif tipo == "MOSTRAR":
+    elif tipo == "MOSTRAR":                # mostrar(x);
         tipo_valor = tipo_da_expressao(no["filhos"][0])
         if tipo_valor == "void":
             erro(no["linha"], "nao da para mostrar uma funcao void (ela nao devolve valor)")
 
 
 def analisar_bloco(bloco):
+    #Abre a caixinha, confere o que tem dentro e fecha.
     entrar_escopo()
     for comando in bloco["filhos"]:
         analisar_comando(comando)
@@ -212,20 +177,20 @@ def analisar_bloco(bloco):
 
 
 def checar_condicao(no, comando):
+    #A condicao do caso_isso / loop tem que ser bool.
     tipo = tipo_da_expressao(no["filhos"][0])
     if tipo != "bool" and tipo != "erro":
         erro(no["linha"], f"a condicao do '{comando}' precisa ser bool (sim/nao), encontrado '{tipo}'")
 
 
 def analisar_declaracao(no):
-    # int x = 10;   -> o valor do no e "int x"; o split() separa em "int" e "x"
-    tipo, nome = no["valor"].split()
+    #int x = 10;  -> confere se o valor cabe e cria o x.
+    tipo, nome = no["valor"].split()   # "int x" -> "int", "x"
     if tipo == "void":
         erro(no["linha"], f"variavel '{nome}' nao pode ser void (void e so para funcao)")
         tipo = "erro"
-    # o valor e analisado ANTES de declarar: em "int x = x;" o x da
-    # direita tem que ser outro x, ja declarado antes (aqui e pos-ordem:
-    # primeiro o filho, depois o proprio no)
+    # o valor e conferido ANTES de criar o x (em "int x = x;" o x da
+    # direita tem que ser outro, criado antes)
     if no["filhos"]:
         tipo_valor = tipo_da_expressao(no["filhos"][0])
         if not pode_guardar(tipo, tipo_valor):
@@ -234,7 +199,7 @@ def analisar_declaracao(no):
 
 
 def analisar_atribuicao(no):
-    # x = 10;
+    #x = 10;  -> confere se o x existe e se o valor cabe nele.
     nome = no["valor"]
     tipo_valor = tipo_da_expressao(no["filhos"][0])
     simbolo = buscar(nome)
@@ -247,18 +212,18 @@ def analisar_atribuicao(no):
 
 
 def analisar_funcao(no):
-    # int soma(int a, int b) { ... }
-    global funcao_atual   # "global": vai trocar a variavel la de cima
-    tipo, nome = no["valor"].split()
-    if len(escopos) > 1:
+    #int soma(int a, int b) { ... }  -> anota a funcao, confere o corpo e
+    #ve se ela tem retorna.
+    global funcao_atual
+    tipo, nome = no["valor"].split()   # "int soma" -> "int", "soma"
+    if len(escopos) > 1:   # esta dentro de um { }
         erro(no["linha"], f"funcao '{nome}' esta dentro de um bloco: funcao so pode ser declarada no escopo global")
         return
 
-    parametros = no["filhos"][:-1]   # todos os filhos menos o ultimo sao os PARAM
-    corpo = no["filhos"][-1]         # o ultimo filho e o BLOCO com o corpo
+    parametros = no["filhos"][:-1]   # todos menos o ultimo: os parametros
+    corpo = no["filhos"][-1]         # o ultimo: o { ... }
 
-    # a funcao entra na tabela ANTES do corpo (pre-ordem): assim ela pode
-    # chamar ela mesma (recursao)
+    # anota a funcao ANTES do corpo, para ela poder chamar ela mesma
     tipos_parametros = []
     for parametro in parametros:
         tipo_parametro, nome_parametro = parametro["valor"].split()
@@ -267,8 +232,7 @@ def analisar_funcao(no):
 
     funcao_atual = {"nome": nome, "tipo": tipo, "achou_retorna": False}
 
-    # parametros e corpo da funcao ficam no MESMO escopo: assim
-    # "int f(int a) { int a = 1; }" da erro de nome repetido
+    # parametros e corpo na MESMA caixinha
     entrar_escopo()
     for parametro in parametros:
         tipo_parametro, nome_parametro = parametro["valor"].split()
@@ -286,7 +250,7 @@ def analisar_funcao(no):
 
 
 def analisar_retorna(no):
-    # retorna valor;   ou   retorna;
+    #retorna x;  -> confere com o tipo da funcao onde ele esta.
     tipo_valor = "void"   # "retorna;" sem valor
     if no["filhos"]:
         tipo_valor = tipo_da_expressao(no["filhos"][0])
@@ -307,30 +271,30 @@ def analisar_retorna(no):
 
 
 # ------------------------------- expressoes -------------------------------
-# As funcoes abaixo devolvem o TIPO da expressao ("int", "decim", "texto",
-# "bool", "void" ou "erro"). O tipo e descoberto de baixo para cima:
-# primeiro o tipo dos filhos, depois o do no (pos-ordem).
+# Descobrem o TIPO de uma expressao (pos-ordem: primeiro os filhos).
 
 def tipo_da_expressao(no):
+    #Devolve o tipo de qualquer expressao.
     tipo = no["tipo"]
-    if tipo in TIPO_DO_LITERAL:
+    if tipo in TIPO_DO_LITERAL:        # 5, 2.5, "oi", sim
         return TIPO_DO_LITERAL[tipo]
-    if tipo == "ID":
+    if tipo == "ID":                   # x
         return tipo_da_variavel(no)
-    if tipo == "CHAMADA":
+    if tipo == "CHAMADA":              # soma(1, 2)
         return tipo_da_chamada(no)
-    if tipo == "NEG":
+    if tipo == "NEG":                  # -x
         tipo_numero = tipo_da_expressao(no["filhos"][0])
         if tipo_numero in NUMEROS or tipo_numero == "erro":
             return tipo_numero
         erro(no["linha"], f"o sinal '-' so funciona com numero, encontrado '{tipo_numero}'")
         return "erro"
-    if tipo == "OP":
+    if tipo == "OP":                   # a + b, x > 0
         return tipo_da_operacao(no)
-    return "erro"   # nao deveria acontecer: a sintatica so monta os nos acima
+    return "erro"   # nao deveria acontecer
 
 
 def tipo_da_variavel(no):
+    #Nome usado numa conta: procura e devolve o tipo dele.
     nome = no["valor"]
     simbolo = buscar(nome)
     if simbolo is None:
@@ -343,10 +307,10 @@ def tipo_da_variavel(no):
 
 
 def tipo_da_chamada(no):
+    #soma(3, 4)  -> confere a quantidade e o tipo dos argumentos.
     nome = no["valor"]
-    argumentos = no["filhos"][0]["filhos"]   # o filho da CHAMADA e o no ARGUMENTOS
+    argumentos = no["filhos"][0]["filhos"]
 
-    # analisa os argumentos primeiro, para achar erros dentro deles tambem
     tipos_argumentos = []
     for argumento in argumentos:
         tipos_argumentos.append(tipo_da_expressao(argumento))
@@ -370,23 +334,23 @@ def tipo_da_chamada(no):
 
 
 def tipo_da_operacao(no):
-    # pos-ordem: primeiro o tipo dos dois filhos, depois o do operador
+    #a + b, x > 0, p && q  -> tipo dos dois lados, depois o do operador.
     operador = no["valor"]
     esquerda = tipo_da_expressao(no["filhos"][0])
     direita = tipo_da_expressao(no["filhos"][1])
 
     if esquerda == "erro" or direita == "erro":
-        return "erro"   # o erro ja foi avisado mais embaixo na arvore
+        return "erro"
 
     dois_numeros = esquerda in NUMEROS and direita in NUMEROS
 
     if operador in ARITMETICOS:
         if dois_numeros:
             if esquerda == "decim" or direita == "decim":
-                return "decim"   # conta com int e decim da decim
+                return "decim"   # int com decim da decim
             return "int"
         if operador == "+" and esquerda == "texto" and direita == "texto":
-            return "texto"       # juntar dois textos
+            return "texto"       # juntar textos
     elif operador in COMPARACOES:
         if dois_numeros:
             return "bool"
@@ -417,8 +381,8 @@ def imprimir_tabela(simbolos):
 
 
 def analisar_arquivo(caminho):
-    #Le um arquivo, faz a analise lexica + sintatica + semantica e mostra o
-    #resultado. Devolve True se nao teve nenhum erro.
+    #Le o arquivo, roda as 3 etapas e mostra o resultado.
+    #Devolve True se nao teve nenhum erro.
     if not caminho.is_file():
         print(f"Erro: arquivo '{caminho}' nao encontrado.")
         return False
@@ -435,8 +399,7 @@ def analisar_arquivo(caminho):
 
     arvore, erros_lexicos, erro_sintatico = analisar(codigo)
 
-    # A semantica so roda com a arvore completa: com erro lexico ou
-    # sintatico a arvore fica pela metade e apareceriam erros falsos.
+    # com erro lexico ou sintatico a arvore fica incompleta: nao roda a semantica
     if erros_lexicos or erro_sintatico:
         for erro_lexico in erros_lexicos:
             print(f" ERRO LEXICO: {erro_lexico}")
@@ -469,7 +432,7 @@ def analisar_arquivo(caminho):
 
 
 def rodar_exemplos():
-    #Roda o analisador em todos os arquivos de examples/, um de cada vez.
+    #Roda em todos os arquivos de examples/.
     pasta = Path(__file__).parent / "examples"
     arquivos = sorted(pasta.glob("*.mini"))
 
@@ -487,8 +450,7 @@ def rodar_exemplos():
 
 
 def main():
-    # Rodar com um nome de arquivo: analisa so aquele arquivo.
-    # Rodar sem nada: analisa todos os exemplos de examples/.
+    # com nome de arquivo: analisa so ele; sem nada: todos os exemplos
     if len(sys.argv) > 1:
         ok = analisar_arquivo(Path(sys.argv[1]))
     else:
