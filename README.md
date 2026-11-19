@@ -15,6 +15,9 @@ primeiro erro de sintaxe encontrado.
 que percorre a árvore sintática, monta a tabela de símbolos (pilha de
 escopos) e verifica declarações, escopos e tipos.
 
+**Código Intermediário (TAC)**: transforma a árvore numa lista de
+instruções simples de três endereços (`t1 = a + b`).
+
 O relatório com as decisões de projeto está em [`RELATORIO.md`](RELATORIO.md).
 
 ## Requisitos
@@ -35,17 +38,20 @@ forma de demonstração/teste deste projeto:
 uv run lexico
 uv run sintatico
 uv run semantico
+uv run tac
 ```
 
 Para analisar um arquivo específico:
 
 ```bash
 uv run semantico examples/semantica.mini
+uv run tac examples/funcoes.mini
 ```
 
 Cada etapa roda as anteriores internamente: o sintático roda o léxico, e o
 semântico roda o léxico + sintático. A análise semântica só acontece se o
-arquivo não tiver erro léxico nem sintático.
+arquivo não tiver erro léxico nem sintático, e o TAC só é gerado se não
+houver erro em nenhuma das três análises.
 
 Os programas encerram com código de saída `0` quando não há erro em
 nenhum arquivo analisado, e `1` quando há pelo menos um erro em algum deles
@@ -60,7 +66,8 @@ analisador_sintatico.py  gramática (BNF em comentário), uma função por regra
                           e a CLI (main())
 analisador_semantico.py  tabela de símbolos (pilha de escopos), verificação
                           de tipos e a CLI (main())
-pyproject.toml           projeto do uv: define os comandos lexico, sintatico e semantico
+gerador_tac.py           gera o código de três endereços (TAC) e a CLI (main())
+pyproject.toml           projeto do uv: define os comandos lexico, sintatico, semantico e tac
 .python-version          versão do Python que o uv usa
 uv.lock                  arquivo gerado pelo uv (não editar à mão)
 examples/

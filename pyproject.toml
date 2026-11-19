@@ -6,15 +6,16 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = []
 
-# Comandos do projeto: "uv run lexico", "uv run sintatico", "uv run semantico"
+# Comandos do projeto: "uv run lexico", "uv run sintatico", "uv run semantico", "uv run tac"
 [project.scripts]
 lexico = "analisador_lexico:main"
 sintatico = "analisador_sintatico:main"
 semantico = "analisador_semantico:main"
+tac = "gerador_tac:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-include = ["analisador_lexico.py", "analisador_sintatico.py", "analisador_semantico.py"]
+include = ["analisador_lexico.py", "analisador_sintatico.py", "analisador_semantico.py", "gerador_tac.py"]

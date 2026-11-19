@@ -113,6 +113,7 @@ O projeto usa o `uv`, e cada etapa do compilador virou um comando
 uv run lexico
 uv run sintatico
 uv run semantico
+uv run tac
 ```
 
 Para analisar apenas um arquivo:
@@ -314,4 +315,55 @@ Para executar:
 ```bash
 uv run semantico
 uv run semantico examples/semantica.mini
+```
+
+## 11. Código intermediário (TAC)
+
+O `gerador_tac.py` transforma a árvore em **código de três endereços**:
+uma lista de instruções simples, uma por linha, cada uma fazendo uma só
+operação (destino, até dois operandos e um operador). Só roda se o programa
+não tiver nenhum erro.
+
+A árvore é percorrida em **pós-ordem**: a folha devolve ela mesma (`5`,
+`x`) e cada operação guarda o resultado num temporário novo:
+
+```
+x = (a + b) * c;      t1 = a + b
+                      t2 = t1 * c
+                      x = t2
+```
+
+| Código fonte        | TAC                                          |
+| ------------------- | -------------------------------------------- |
+| `mostrar(x);`       | `print x`                                    |
+| `soma(a, b)`        | `param a` / `param b` / `t1 = call soma, 2`  |
+| `retorna x;`        | `return x`                                   |
+| `int soma(int a, int b) {` | rótulo `soma:` com parâmetros e locais |
+| `caso_isso`, `loop` | `ifFalse t1 goto L1`, `goto L2`, rótulos `L1:` |
+| `sim` / `nao`       | `1` / `0`                                    |
+
+### Decisões pensando no assembly
+
+* Cada instrução é um dicionário `{op, destino, arg1, arg2}`: o assembly lê
+  os campos direto, sem precisar quebrar texto. `formatar()` só monta o
+  texto para mostrar.
+* **Temporários** (estratégia ingênua): `novo_temporario()` dá `t1`, `t2`...
+  Como nenhum temporário passa de um comando para o outro, a contagem volta
+  para `t1` a cada comando. Assim os exemplos usam no máximo 5, e o RISC-V
+  tem 7 (`t0`–`t6`).
+* **Funções** viram um rótulo com o nome delas, que leva a lista de
+  parâmetros (em ordem, para irem para `a0`, `a1`...) e de variáveis locais
+  (que vão para a pilha, o que permite recursão). As funções vêm primeiro e
+  o programa principal fica depois do rótulo `main:`. Se a função não
+  termina com `return`, o gerador coloca um.
+* **Chamadas**: todos os argumentos são calculados antes dos `param`, para
+  os `param` de `soma(3, dobro(4))` não se misturarem com os de `dobro`.
+* **Sombreamento**: o TAC não tem `{ }`. Quando um bloco ou função cria uma
+  variável com o nome de outra que já existe fora, a nova ganha um sufixo
+  (`x_1`), para as duas não virarem a mesma no assembly.
+* `&&` e `||` são contas normais (sem curto-circuito).
+
+```bash
+uv run tac
+uv run tac examples/semantica.mini
 ```
