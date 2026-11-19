@@ -228,6 +228,9 @@ def formatar(i):
 
 
 def analisar_arquivo(caminho):
+    if not caminho.is_file():
+        print(f"Erro: arquivo '{caminho}' nao encontrado.")
+        return False
     print("-" * 64)
     print(f" {caminho.name}")
     print("-" * 64)
